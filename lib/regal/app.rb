@@ -1,9 +1,16 @@
 require 'rack'
 
 module Regal
-  class App
+  module App
+    def self.create(&block)
+      Class.new(Route).create(&block)
+    end
+  end
+
+  class Route
     class << self
       def create(&block)
+        @mounted_apps = []
         @static_routes = {}
         @dynamic_route = nil
         @handlers = {}
@@ -13,6 +20,10 @@ module Regal
 
       def route(s, &block)
         @static_routes[s] = Class.new(self).create(&block)
+      end
+
+      def mount(app)
+        @mounted_apps << app
       end
 
       def get(&block)
@@ -27,7 +38,16 @@ module Regal
       end
 
       def find_route(path_component)
-        @static_routes[path_component]
+        if (app = @static_routes[path_component])
+          app
+        else
+          @mounted_apps.each do |a|
+            if (r = a.find_route(path_component))
+              return r
+            end
+          end
+          nil
+        end
       end
 
       def find_handler(request_method)
