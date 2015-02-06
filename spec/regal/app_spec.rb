@@ -25,6 +25,11 @@ module Regal
         get '/hello/fnord'
         expect(last_response.status).to eq(404)
       end
+
+      it 'responds with 405 when the route exists but there is no handler for the HTTP method' do
+        delete '/hello/world'
+        expect(last_response.status).to eq(405)
+      end
     end
 
     context 'with an app that mounts another app' do

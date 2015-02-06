@@ -12,7 +12,6 @@ module Regal
       def create(&block)
         @mounted_apps = []
         @static_routes = {}
-        @dynamic_route = nil
         @handlers = {}
         instance_exec(&block)
         self
@@ -30,41 +29,41 @@ module Regal
         @handlers['GET'] = block
       end
 
-      def resolve(path_components, request_method)
-        app = path_components.reduce(self) do |app, path_component|
-          app && app.find_route(path_component)
-        end
-        app && app.find_handler(request_method)
-      end
-
-      def find_route(path_component)
-        if (app = @static_routes[path_component])
-          app
-        else
-          @mounted_apps.each do |a|
-            if (r = a.find_route(path_component))
-              return r
-            end
-          end
-          nil
-        end
-      end
-
-      def find_handler(request_method)
-        @handlers[request_method]
-      end
+      attr_reader :static_routes, :mounted_apps, :handlers
     end
 
     SLASH = '/'.freeze
 
+    def initialize
+      @static_routes = {}
+      self.class.mounted_apps.each do |app|
+        app.static_routes.each do |path, cls|
+          @static_routes[path] = cls.new
+        end
+      end
+      self.class.static_routes.each do |path, cls|
+        @static_routes[path] = cls.new
+      end
+    end
+
     def call(env)
-      request_method = env[Rack::REQUEST_METHOD]
       path_components = env[Rack::PATH_INFO].split(SLASH)
       path_components.shift
-      handler = self.class.resolve(path_components, request_method)
-      if handler
-        body = instance_exec(&handler)
-        [200, {}, [body]]
+      internal_call(env, path_components)
+    end
+
+    def internal_call(env, path_components)
+      if path_components.empty?
+        if (handler = self.class.handlers[env[Rack::REQUEST_METHOD]])
+          body = instance_exec(&handler)
+          [200, {}, [body]]
+        else
+          [405, {}, []]
+        end
+      elsif ()
+      elsif (app = @static_routes[path_components.first])
+        path_components.shift
+        app.internal_call(env, path_components)
       else
         [404, {}, []]
       end
