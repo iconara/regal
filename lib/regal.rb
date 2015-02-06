@@ -1,0 +1,2 @@
+module Regal
+end
