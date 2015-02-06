@@ -12,13 +12,19 @@ module Regal
       def create(&block)
         @mounted_apps = []
         @static_routes = {}
+        @dynamic_route = nil
         @handlers = {}
         instance_exec(&block)
         self
       end
 
       def route(s, &block)
-        @static_routes[s] = Class.new(self).create(&block)
+        r = Class.new(self).create(&block)
+        if s.is_a?(Symbol)
+          @dynamic_route = r
+        else
+          @static_routes[s] = r
+        end
       end
 
       def mount(app)
@@ -29,7 +35,7 @@ module Regal
         @handlers['GET'] = block
       end
 
-      attr_reader :static_routes, :mounted_apps, :handlers
+      attr_reader :static_routes, :dynamic_route, :mounted_apps, :handlers
     end
 
     SLASH = '/'.freeze
@@ -44,6 +50,7 @@ module Regal
       self.class.static_routes.each do |path, cls|
         @static_routes[path] = cls.new
       end
+      @dynamic_route = self.class.dynamic_route && self.class.dynamic_route.new
     end
 
     def call(env)
@@ -60,10 +67,12 @@ module Regal
         else
           [405, {}, []]
         end
-      elsif ()
       elsif (app = @static_routes[path_components.first])
         path_components.shift
         app.internal_call(env, path_components)
+      elsif @dynamic_route
+        path_components.shift
+        @dynamic_route.internal_call(env, path_components)
       else
         [404, {}, []]
       end

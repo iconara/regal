@@ -32,6 +32,27 @@ module Regal
       end
     end
 
+    context 'with an app that has wildcard routes' do
+      let :app do
+        DynamicApp.new
+      end
+
+      it 'routes anything to wildcard routes' do
+        get '/foo/something'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('whatever')
+        get '/foo/something-else'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('whatever')
+      end
+
+      it 'picks static routes first' do
+        get '/foo/bar'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('bar')
+      end
+    end
+
     context 'with an app that mounts another app' do
       let :app do
         MountingApp.new
@@ -60,6 +81,22 @@ module Regal
       route 'world' do
         get do
           'hello world'
+        end
+      end
+    end
+  end
+
+  DynamicApp = App.create do
+    route 'foo' do
+      route :bar do
+        get do
+          'whatever'
+        end
+      end
+
+      route 'bar' do
+        get do
+          'bar'
         end
       end
     end
