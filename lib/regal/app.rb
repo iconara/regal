@@ -51,6 +51,8 @@ module Regal
 
     SLASH = '/'.freeze
     PATH_CAPTURES_KEY = 'regal.path_captures'.freeze
+    METHOD_NOT_ALLOWED_RESPONSE = [405, {}.freeze, [].freeze].freeze
+    NOT_FOUND_RESPONSE = [404, {}.freeze, [].freeze].freeze
 
     attr_reader :name
 
@@ -83,7 +85,7 @@ module Regal
           response.body = instance_exec(request, response, &handler)
           response
         else
-          [405, {}, []]
+          METHOD_NOT_ALLOWED_RESPONSE
         end
       elsif (app = @static_routes[path_components.first])
         path_components.shift
@@ -92,7 +94,7 @@ module Regal
         env[PATH_CAPTURES_KEY][@dynamic_route.name] = path_components.shift
         @dynamic_route.internal_call(env, path_components)
       else
-        [404, {}, []]
+        NOT_FOUND_RESPONSE
       end
     end
   end
