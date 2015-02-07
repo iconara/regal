@@ -45,6 +45,47 @@ module Regal
       end
     end
 
+    context 'when looking at the request' do
+      let :app do
+        a = App.create do
+          route 'echo' do
+            get do |request|
+              request.parameters['s']
+            end
+          end
+
+          route 'international-hello' do
+            get do |request|
+              case request.headers['Accept-Language']
+              when 'sv_SE'
+                'hej'
+              when 'fr_FR'
+                'bonjour'
+              else
+                '?'
+              end
+            end
+          end
+        end
+        a.new
+      end
+
+      it 'gives the app access to the request parameters' do
+        get '/echo?s=hallo'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('hallo')
+      end
+
+      it 'gives the app access to the request headers' do
+        get '/international-hello', nil, {'HTTP_ACCEPT_LANGUAGE' => 'sv_SE'}
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('hej')
+        get '/international-hello', nil, {'HTTP_ACCEPT_LANGUAGE' => 'fr_FR'}
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('bonjour')
+      end
+    end
+
     context 'with an app that has wildcard routes' do
       let :app do
         a = App.create do
@@ -52,6 +93,12 @@ module Regal
             route :bar do
               get do
                 'whatever'
+              end
+
+              route 'echo' do
+                get do |request|
+                  request.parameters[:bar]
+                end
               end
             end
 
@@ -78,6 +125,15 @@ module Regal
         get '/foo/bar'
         expect(last_response.status).to eq(200)
         expect(last_response.body).to eq('bar')
+      end
+
+      it 'captures the wildcard value as a parameter' do
+        get '/foo/zzz/echo'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('zzz')
+        get '/foo/q/echo'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('q')
       end
     end
 
