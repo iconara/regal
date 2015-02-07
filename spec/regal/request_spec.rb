@@ -57,5 +57,12 @@ module Regal
         end
       end
     end
+
+    describe '#attributes' do
+      it 'returns a hash' do
+        request.attributes[:foo] = 'bar'
+        expect(request.attributes).to include(:foo => 'bar')
+      end
+    end
   end
 end

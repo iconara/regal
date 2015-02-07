@@ -1,7 +1,10 @@
 module Regal
   class Request
+    attr_reader :attributes
+
     def initialize(env)
       @env = env
+      @attributes = {}
     end
 
     def parameters
