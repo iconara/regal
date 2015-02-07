@@ -6,7 +6,20 @@ module Regal
 
     context 'with a basic app' do
       let :app do
-        HelloWorldApp.new
+        a = App.create do
+          route 'hello' do
+            get do
+              'hello'
+            end
+
+            route 'world' do
+              get do
+                'hello world'
+              end
+            end
+          end
+        end
+        a.new
       end
 
       it 'routes a request' do
@@ -34,7 +47,22 @@ module Regal
 
     context 'with an app that has wildcard routes' do
       let :app do
-        DynamicApp.new
+        a = App.create do
+          route 'foo' do
+            route :bar do
+              get do
+                'whatever'
+              end
+            end
+
+            route 'bar' do
+              get do
+                'bar'
+              end
+            end
+          end
+        end
+        a.new
       end
 
       it 'routes anything to wildcard routes' do
@@ -54,8 +82,27 @@ module Regal
     end
 
     context 'with an app that mounts another app' do
+      HelloApp = App.create do
+        route 'hello' do
+          get do
+            'hello'
+          end
+        end
+      end
+
       let :app do
-        MountingApp.new
+        a = App.create do
+          route 'i' do
+            route 'say' do
+              mount HelloApp
+            end
+          end
+
+          route 'oh' do
+            mount HelloApp
+          end
+        end
+        a.new
       end
 
       it 'routes a request' do
@@ -69,48 +116,6 @@ module Regal
         expect(last_response.status).to eq(200)
         expect(last_response.body).to eq('hello')
       end
-    end
-  end
-
-  HelloWorldApp = App.create do
-    route 'hello' do
-      get do
-        'hello'
-      end
-
-      route 'world' do
-        get do
-          'hello world'
-        end
-      end
-    end
-  end
-
-  DynamicApp = App.create do
-    route 'foo' do
-      route :bar do
-        get do
-          'whatever'
-        end
-      end
-
-      route 'bar' do
-        get do
-          'bar'
-        end
-      end
-    end
-  end
-
-  MountingApp = App.create do
-    route 'i' do
-      route 'say' do
-        mount HelloWorldApp
-      end
-    end
-
-    route 'oh' do
-      mount HelloWorldApp
     end
   end
 end
