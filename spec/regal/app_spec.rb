@@ -7,6 +7,10 @@ module Regal
     context 'a basic app' do
       let :app do
         a = App.create do
+          get do
+            'root'
+          end
+
           route 'hello' do
             get do
               'hello'
