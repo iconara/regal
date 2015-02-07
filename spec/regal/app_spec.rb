@@ -4,7 +4,7 @@ module Regal
   describe App do
     include Rack::Test::Methods
 
-    context 'with a basic app' do
+    context 'a basic app' do
       let :app do
         a = App.create do
           route 'hello' do
@@ -34,18 +34,18 @@ module Regal
         expect(last_response.body).to eq('hello world')
       end
 
-      it 'responds with 404 when the route does not exist' do
+      it 'responds with 404 when the path does not match any route' do
         get '/hello/fnord'
         expect(last_response.status).to eq(404)
       end
 
-      it 'responds with 405 when the route exists but there is no handler for the HTTP method' do
+      it 'responds with 405 when the path matches a route but there is no handler for the HTTP method' do
         delete '/hello/world'
         expect(last_response.status).to eq(405)
       end
     end
 
-    context 'when looking at the request' do
+    context 'a simple interactive app' do
       let :app do
         a = App.create do
           route 'echo' do
@@ -70,13 +70,13 @@ module Regal
         a.new
       end
 
-      it 'gives the app access to the request parameters' do
+      it 'can access the query parameters' do
         get '/echo?s=hallo'
         expect(last_response.status).to eq(200)
         expect(last_response.body).to eq('hallo')
       end
 
-      it 'gives the app access to the request headers' do
+      it 'can access the request headers' do
         get '/international-hello', nil, {'HTTP_ACCEPT_LANGUAGE' => 'sv_SE'}
         expect(last_response.status).to eq(200)
         expect(last_response.body).to eq('hej')
@@ -86,7 +86,7 @@ module Regal
       end
     end
 
-    context 'with an app that has wildcard routes' do
+    context 'an app that has capturing routes' do
       let :app do
         a = App.create do
           route 'foo' do
@@ -112,7 +112,7 @@ module Regal
         a.new
       end
 
-      it 'routes anything to wildcard routes' do
+      it 'matches anything for the capture route' do
         get '/foo/something'
         expect(last_response.status).to eq(200)
         expect(last_response.body).to eq('whatever')
@@ -127,7 +127,7 @@ module Regal
         expect(last_response.body).to eq('bar')
       end
 
-      it 'captures the wildcard value as a parameter' do
+      it 'captures the path component as a parameter using a symbol as key' do
         get '/foo/zzz/echo'
         expect(last_response.status).to eq(200)
         expect(last_response.body).to eq('zzz')
@@ -137,7 +137,7 @@ module Regal
       end
     end
 
-    context 'with an app that mounts another app' do
+    context 'an app that mounts another app' do
       HelloApp = App.create do
         route 'hello' do
           get do
@@ -161,13 +161,13 @@ module Regal
         a.new
       end
 
-      it 'routes a request' do
+      it 'routes a request into the other app' do
         get '/i/say/hello'
         expect(last_response.status).to eq(200)
         expect(last_response.body).to eq('hello')
       end
 
-      it 'routes a request through all mounts' do
+      it 'can mount the same app multiple times' do
         get '/oh/hello'
         expect(last_response.status).to eq(200)
         expect(last_response.body).to eq('hello')
