@@ -7,41 +7,47 @@ module Regal
     end
   end
 
-  class Route
-    class << self
-      def create(parameter_name=nil, &block)
-        @mounted_apps = []
-        @static_routes = {}
-        @dynamic_route = nil
-        @handlers = {}
-        @parameter_name = parameter_name
-        instance_exec(&block)
-        self
-      end
+  module RouterDsl
+    attr_reader :static_routes,
+                :dynamic_route,
+                :mounted_apps,
+                :handlers,
+                :parameter_name
 
-      def route(s, &block)
-        r = Class.new(self)
-        if s.is_a?(Symbol)
-          @dynamic_route = r.create(s, &block)
-        else
-          @static_routes[s] = r.create(&block)
-        end
-      end
-
-      def mount(app)
-        @mounted_apps << app
-      end
-
-      def get(&block)
-        @handlers['GET'] = block
-      end
-
-      def post(&block)
-        @handlers['POST'] = block
-      end
-
-      attr_reader :static_routes, :dynamic_route, :mounted_apps, :handlers, :parameter_name
+    def create(parameter_name=nil, &block)
+      @mounted_apps = []
+      @static_routes = {}
+      @dynamic_route = nil
+      @handlers = {}
+      @parameter_name = parameter_name
+      instance_exec(&block)
+      self
     end
+
+    def route(s, &block)
+      r = Class.new(self)
+      if s.is_a?(Symbol)
+        @dynamic_route = r.create(s, &block)
+      else
+        @static_routes[s] = r.create(&block)
+      end
+    end
+
+    def mount(app)
+      @mounted_apps << app
+    end
+
+    def get(&block)
+      @handlers['GET'] = block
+    end
+
+    def post(&block)
+      @handlers['POST'] = block
+    end
+  end
+
+  class Route
+    extend RouterDsl
 
     SLASH = '/'.freeze
     PATH_CAPTURES_KEY = 'regal.path_captures'.freeze
