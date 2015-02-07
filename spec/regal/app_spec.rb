@@ -138,10 +138,24 @@ module Regal
     end
 
     context 'an app that mounts another app' do
+      GoodbyeApp = App.create do
+        route 'goodbye' do
+          get do
+            'goodbye'
+          end
+        end
+      end
+
       HelloApp = App.create do
         route 'hello' do
           get do
             'hello'
+          end
+
+          route 'you' do
+            route 'say' do
+              mount GoodbyeApp
+            end
           end
         end
       end
@@ -151,6 +165,7 @@ module Regal
           route 'i' do
             route 'say' do
               mount HelloApp
+              mount GoodbyeApp
             end
           end
 
@@ -165,6 +180,18 @@ module Regal
         get '/i/say/hello'
         expect(last_response.status).to eq(200)
         expect(last_response.body).to eq('hello')
+      end
+
+      it 'can mount multiple apps' do
+        get '/i/say/goodbye'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('goodbye')
+      end
+
+      it 'routes a request into apps that mount yet more apps' do
+        get '/i/say/hello/you/say/goodbye'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('goodbye')
       end
 
       it 'can mount the same app multiple times' do
