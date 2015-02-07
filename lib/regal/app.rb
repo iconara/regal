@@ -73,8 +73,9 @@ module Regal
       if path_components.empty?
         if (handler = self.class.handlers[env[Rack::REQUEST_METHOD]])
           request = Request.new(env)
-          body = instance_exec(request, &handler)
-          [200, {}, [body]]
+          response = Response.new
+          response.body = instance_exec(request, response, &handler)
+          response
         else
           [405, {}, []]
         end

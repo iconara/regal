@@ -96,6 +96,30 @@ module Regal
       end
     end
 
+    context 'an app that does more than just respond with a body' do
+      let :app do
+        a = App.create do
+          route 'redirect' do
+            get do |_, response|
+              response.status = 307
+              response.headers['Location'] = 'somewhere/else'
+            end
+          end
+        end
+        a.new
+      end
+
+      it 'can change the response code' do
+        get '/redirect'
+        expect(last_response.status).to eq(307)
+      end
+
+      it 'can set response headers' do
+        get '/redirect'
+        expect(last_response.headers).to include('Location' => 'somewhere/else')
+      end
+    end
+
     context 'an app that has capturing routes' do
       let :app do
         a = App.create do
