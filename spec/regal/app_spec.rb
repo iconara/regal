@@ -32,6 +32,12 @@ module Regal
         expect(last_response.body).to eq('hello')
       end
 
+      it 'routes a request to the root' do
+        get '/'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('root')
+      end
+
       it 'routes a request with more than one path component' do
         get '/hello/world'
         expect(last_response.status).to eq(200)
@@ -121,6 +127,72 @@ module Regal
       it 'can set response headers' do
         get '/redirect'
         expect(last_response.headers).to include('Location' => 'somewhere/else')
+      end
+    end
+
+    context 'an app doing work before route handlers' do
+      let :app do
+        a = App.create do
+          before do |request|
+            request.attributes[:some_key] = [1]
+          end
+
+          get do |request|
+            request.attributes[:some_key].join(',')
+          end
+
+          route 'one-before' do
+            before do |request|
+              request.attributes[:some_key] << 2
+            end
+
+            get do |request|
+              request.attributes[:some_key].join(',')
+            end
+          end
+
+          route 'two-before' do
+            before do |request|
+              request.attributes[:some_key] << 2
+            end
+
+            before do |request|
+              request.attributes[:some_key] << 3
+            end
+
+            get do |request|
+              request.attributes[:some_key].join(',')
+            end
+
+            route 'another-before' do
+              before do |request|
+                request.attributes[:some_key] << 4
+              end
+
+              get do |request|
+                request.attributes[:some_key].join(',')
+              end
+            end
+          end
+        end
+        a.new
+      end
+
+      it 'calls the before block before the request handler' do
+        get '/'
+        expect(last_response.body).to eq('1')
+      end
+
+      it 'calls the before blocks of all routes before the request handler' do
+        get '/one-before'
+        expect(last_response.body).to eq('1,2')
+      end
+
+      it 'calls all before blocks of a route before the request handler' do
+        get '/two-before'
+        expect(last_response.body).to eq('1,2,3')
+        get '/two-before/another-before'
+        expect(last_response.body).to eq('1,2,3,4')
       end
     end
 

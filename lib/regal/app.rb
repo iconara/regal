@@ -19,9 +19,18 @@ module Regal
       @static_routes = {}
       @dynamic_route = nil
       @handlers = {}
+      @befores = []
       @name = name
       instance_exec(&block)
       self
+    end
+
+    def befores
+      if superclass.respond_to?(:befores) && (befores = superclass.befores)
+        befores + @befores
+      else
+        @befores
+      end
     end
 
     def route(s, &block)
@@ -35,6 +44,10 @@ module Regal
 
     def mount(app)
       @mounted_apps << app
+    end
+
+    def before(&block)
+      @befores << block
     end
 
     def get(&block)
@@ -57,6 +70,7 @@ module Regal
     attr_reader :name
 
     def initialize
+      @befores = self.class.befores
       @static_routes = {}
       self.class.mounted_apps.each do |app|
         app.static_routes.each do |path, cls|
@@ -81,6 +95,9 @@ module Regal
       if path_components.empty?
         if (handler = self.class.handlers[env[Rack::REQUEST_METHOD]])
           request = Request.new(env)
+          @befores.each do |before|
+            instance_exec(request, &before)
+          end
           response = Response.new
           response.body = instance_exec(request, response, &handler)
           response
