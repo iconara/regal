@@ -33,8 +33,13 @@ module Regal
       end
     end
 
+    def body
+      @env[RACK_INPUT_KEY]
+    end
+
     HEADER_PREFIX = 'HTTP_'.freeze
     CONTENT_LENGTH_KEY = 'CONTENT_LENGTH'.freeze
     CONTENT_TYPE_KEY = 'CONTENT_TYPE'.freeze
+    RACK_INPUT_KEY = 'rack.input'.freeze
   end
 end

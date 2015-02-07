@@ -52,6 +52,10 @@ module Regal
             get do |request|
               request.parameters['s']
             end
+
+            post do |request|
+              request.body.read
+            end
           end
 
           route 'international-hello' do
@@ -83,6 +87,12 @@ module Regal
         get '/international-hello', nil, {'HTTP_ACCEPT_LANGUAGE' => 'fr_FR'}
         expect(last_response.status).to eq(200)
         expect(last_response.body).to eq('bonjour')
+      end
+
+      it 'can access the request body' do
+        post '/echo', 'blobblobblob'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('blobblobblob')
       end
     end
 

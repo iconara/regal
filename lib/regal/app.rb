@@ -36,6 +36,10 @@ module Regal
         @handlers['GET'] = block
       end
 
+      def post(&block)
+        @handlers['POST'] = block
+      end
+
       attr_reader :static_routes, :dynamic_route, :mounted_apps, :handlers, :parameter_name
     end
 
