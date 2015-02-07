@@ -12,24 +12,24 @@ module Regal
                 :dynamic_route,
                 :mounted_apps,
                 :handlers,
-                :parameter_name
+                :name
 
-    def create(parameter_name=nil, &block)
+    def create(name=nil, &block)
       @mounted_apps = []
       @static_routes = {}
       @dynamic_route = nil
       @handlers = {}
-      @parameter_name = parameter_name
+      @name = name
       instance_exec(&block)
       self
     end
 
     def route(s, &block)
-      r = Class.new(self)
+      r = Class.new(self).create(s, &block)
       if s.is_a?(Symbol)
-        @dynamic_route = r.create(s, &block)
+        @dynamic_route = r
       else
-        @static_routes[s] = r.create(&block)
+        @static_routes[s] = r
       end
     end
 
@@ -52,7 +52,7 @@ module Regal
     SLASH = '/'.freeze
     PATH_CAPTURES_KEY = 'regal.path_captures'.freeze
 
-    attr_reader :parameter_name
+    attr_reader :name
 
     def initialize
       @static_routes = {}
@@ -64,7 +64,7 @@ module Regal
       self.class.static_routes.each do |path, cls|
         @static_routes[path] = cls.new
       end
-      @parameter_name = self.class.parameter_name
+      @name = self.class.name
       @dynamic_route = self.class.dynamic_route && self.class.dynamic_route.new
     end
 
@@ -89,7 +89,7 @@ module Regal
         path_components.shift
         app.internal_call(env, path_components)
       elsif @dynamic_route
-        env[PATH_CAPTURES_KEY][@dynamic_route.parameter_name] = path_components.shift
+        env[PATH_CAPTURES_KEY][@dynamic_route.name] = path_components.shift
         @dynamic_route.internal_call(env, path_components)
       else
         [404, {}, []]
