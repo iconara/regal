@@ -12,11 +12,7 @@ module Regal
   end
 
   module RouterDsl
-    attr_reader :static_routes,
-                :dynamic_route,
-                :mounted_apps,
-                :handlers,
-                :name
+    attr_reader :name, :handlers
 
     def create(name=nil, &block)
       @mounted_apps = []
@@ -44,6 +40,20 @@ module Regal
       else
         @afters
       end
+    end
+
+    def routes
+      routes = {}
+      if @dynamic_route
+        routes.default = @dynamic_route.new
+      end
+      @mounted_apps.each do |app|
+        routes.merge!(app.routes)
+      end
+      @static_routes.each do |path, cls|
+        routes[path] = cls.new
+      end
+      routes
     end
 
     def route(s, &block)
@@ -93,17 +103,9 @@ module Regal
     def initialize
       @befores = self.class.befores
       @afters = self.class.afters.reverse
-      @static_routes = {}
-      self.class.mounted_apps.each do |app|
-        app.static_routes.each do |path, cls|
-          @static_routes[path] = cls.new
-        end
-      end
-      self.class.static_routes.each do |path, cls|
-        @static_routes[path] = cls.new
-      end
+      @routes = self.class.routes
+      @handlers = self.class.handlers
       @name = self.class.name
-      @dynamic_route = self.class.dynamic_route && self.class.dynamic_route.new
     end
 
     def call(env)
@@ -115,7 +117,7 @@ module Regal
 
     def internal_call(env, path_components)
       if path_components.empty?
-        if (handler = self.class.handlers[env[Rack::REQUEST_METHOD]])
+        if (handler = @handlers[env[Rack::REQUEST_METHOD]])
           request = Request.new(env)
           response = Response.new
           @befores.each do |before|
@@ -130,12 +132,12 @@ module Regal
         else
           METHOD_NOT_ALLOWED_RESPONSE
         end
-      elsif (app = @static_routes[path_components.first])
+      elsif (app = @routes[path_components.first])
+        unless @routes.key?(path_components.first)
+          env[PATH_CAPTURES_KEY][app.name] = path_components.first
+        end
         path_components.shift
         app.internal_call(env, path_components)
-      elsif @dynamic_route
-        env[PATH_CAPTURES_KEY][@dynamic_route.name] = path_components.shift
-        @dynamic_route.internal_call(env, path_components)
       else
         NOT_FOUND_RESPONSE
       end
