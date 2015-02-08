@@ -125,6 +125,8 @@ module Regal
     SLASH = '/'.freeze
     PATH_CAPTURES_KEY = 'regal.path_captures'.freeze
     PATH_COMPONENTS_KEY = 'regal.path_components'.freeze
+    PATH_INFO_KEY = 'PATH_INFO'.freeze
+    REQUEST_METHOD_KEY = 'REQUEST_METHOD'.freeze
     METHOD_NOT_ALLOWED_RESPONSE = [405, {}.freeze, [].freeze].freeze
     NOT_FOUND_RESPONSE = [404, {}.freeze, [].freeze].freeze
     EMPTY_BODY = ''.freeze
@@ -150,7 +152,7 @@ module Regal
     end
 
     def call(env)
-      path_components = env[PATH_COMPONENTS_KEY] ||= env[Rack::PATH_INFO].split(SLASH).drop(1)
+      path_components = env[PATH_COMPONENTS_KEY] ||= env[PATH_INFO_KEY].split(SLASH).drop(1)
       path_component = path_components.shift
       if path_component && (app = @routes[path_component])
         dynamic_route = !@routes.key?(path_component)
@@ -173,7 +175,7 @@ module Regal
     private
 
     def handle(env)
-      if (handler = @handlers[env[Rack::REQUEST_METHOD]])
+      if (handler = @handlers[env[REQUEST_METHOD_KEY]])
         request = Request.new(env)
         response = Response.new
         @befores.each do |before|

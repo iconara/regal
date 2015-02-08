@@ -18,7 +18,7 @@ module Regal
     def parameters
       @parameters ||= begin
         path_captures = @env[Route::PATH_CAPTURES_KEY]
-        query = Rack::Utils.parse_query(@env[Rack::QUERY_STRING])
+        query = Rack::Utils.parse_query(@env[QUERY_STRING_KEY])
         query.merge!(path_captures) if path_captures
         query.freeze
       end
@@ -32,9 +32,9 @@ module Regal
             normalized_key.gsub!(/(?<=^.|_.)[^_]+/) { |str| str.downcase }
             normalized_key.gsub!('_', '-')
           elsif key == CONTENT_LENGTH_KEY
-            normalized_key = Rack::CONTENT_LENGTH
+            normalized_key = CONTENT_LENGTH_HEADER
           elsif key == CONTENT_TYPE_KEY
-            normalized_key = Rack::CONTENT_TYPE
+            normalized_key = CONTENT_TYPE_HEADER
           end
           if normalized_key
             headers[normalized_key] = value
@@ -49,8 +49,11 @@ module Regal
     end
 
     HEADER_PREFIX = 'HTTP_'.freeze
+    QUERY_STRING_KEY = 'QUERY_STRING'.freeze
     CONTENT_LENGTH_KEY = 'CONTENT_LENGTH'.freeze
+    CONTENT_LENGTH_HEADER = 'Content-Length'.freeze
     CONTENT_TYPE_KEY = 'CONTENT_TYPE'.freeze
+    CONTENT_TYPE_HEADER = 'Content-Type'.freeze
     RACK_INPUT_KEY = 'rack.input'.freeze
     REQUEST_METHOD_KEY = 'REQUEST_METHOD'.freeze
     HEAD_METHOD = 'HEAD'.freeze
