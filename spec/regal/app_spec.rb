@@ -7,7 +7,7 @@ module Regal
 
     context 'a basic app' do
       let :app do
-        a = App.create do
+        App.new do
           get do
             'root'
           end
@@ -24,7 +24,6 @@ module Regal
             end
           end
         end
-        a.new
       end
 
       it 'routes a request' do
@@ -58,7 +57,7 @@ module Regal
 
     context 'a simple interactive app' do
       let :app do
-        a = App.create do
+        App.new do
           route 'echo' do
             get do |request|
               request.parameters['s']
@@ -82,7 +81,6 @@ module Regal
             end
           end
         end
-        a.new
       end
 
       it 'can access the query parameters' do
@@ -109,7 +107,7 @@ module Regal
 
     context 'an app that does more than just respond with a body' do
       let :app do
-        a = App.create do
+        App.new do
           route 'redirect' do
             get do |_, response|
               response.status = 307
@@ -117,7 +115,6 @@ module Regal
             end
           end
         end
-        a.new
       end
 
       it 'can change the response code' do
@@ -133,7 +130,7 @@ module Regal
 
     context 'an app doing work before route handlers' do
       let :app do
-        a = App.create do
+        App.new do
           before do |request|
             request.attributes[:some_key] = [1]
           end
@@ -176,7 +173,6 @@ module Regal
             end
           end
         end
-        a.new
       end
 
       it 'calls the before block before the request handler' do
@@ -202,7 +198,7 @@ module Regal
 
     context 'an app doing work after route handlers' do
       let :app do
-        a = App.create do
+        App.new do
           after do |_, response|
             response.headers['Content-Type'] = 'application/json'
             response.body = JSON.dump(response.body)
@@ -246,7 +242,6 @@ module Regal
             end
           end
         end
-        a.new
       end
 
       it 'calls the after block after the request handler' do
@@ -272,7 +267,7 @@ module Regal
 
     context 'an app that has capturing routes' do
       let :app do
-        a = App.create do
+        App.new do
           route 'foo' do
             route :bar do
               get do
@@ -293,7 +288,6 @@ module Regal
             end
           end
         end
-        a.new
       end
 
       it 'matches anything for the capture route' do
@@ -345,7 +339,7 @@ module Regal
       end
 
       let :app do
-        a = App.create do
+        App.new do
           route 'i' do
             route 'say' do
               mount HelloApp
@@ -357,7 +351,6 @@ module Regal
             mount HelloApp
           end
         end
-        a.new
       end
 
       it 'routes a request into the other app' do
@@ -387,7 +380,7 @@ module Regal
 
     context 'an app that supports all HTTP methods' do
       let :app do
-        a = App.create do
+        App.new do
           get do |request|
             request.request_method
           end
@@ -422,7 +415,6 @@ module Regal
             end
           end
         end
-        a.new
       end
 
       it 'routes GET requests' do

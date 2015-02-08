@@ -5,6 +5,10 @@ module Regal
     def self.create(&block)
       Class.new(Route).create(&block)
     end
+
+    def self.new(&block)
+      create(&block).new
+    end
   end
 
   module RouterDsl
