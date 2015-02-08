@@ -36,6 +36,19 @@ module Regal
         response.body = 123
         expect(response[2]).to eq(123)
       end
+
+      it 'uses the raw body if set' do
+        response.raw_body = %w[one two]
+        response.body = 'three'
+        expect(response[2]).to eq(%w[one two])
+      end
+    end
+
+    describe '#no_body' do
+      it 'sets the raw body to an empty array' do
+        response.no_body
+        expect(response[2]).to eq([])
+      end
     end
   end
 end

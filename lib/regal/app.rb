@@ -183,7 +183,8 @@ module Regal
           @actual.instance_exec(request, response, &before)
         end
         unless response.finished?
-          response.body = @actual.instance_exec(request, response, &handler)
+          result = @actual.instance_exec(request, response, &handler)
+          response.body = result unless response.finished?
         end
         @afters.each do |after|
           @actual.instance_exec(request, response, &after)

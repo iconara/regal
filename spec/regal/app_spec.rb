@@ -735,5 +735,49 @@ module Regal
         expect(last_response.body).to eq('Bonjour, Eve'.reverse)
       end
     end
+
+    context 'an app which needs more control over the response body' do
+      let :app do
+        App.new do
+          route 'no-overwrite' do
+            get do |_, response|
+              response.body = 'foobar'
+              response.finish
+            end
+          end
+
+          route 'raw-body' do
+            get do |_, response|
+              response.raw_body = 'a'..'z'
+            end
+          end
+
+          route 'no-body' do
+            before do |_, response|
+              response.no_body
+            end
+
+            get do
+              'I will not be used'
+            end
+          end
+        end
+      end
+
+      it 'can finish the response so that the result of the handler will not be used as body' do
+        get '/no-overwrite'
+        expect(last_response.body).to eq('foobar')
+      end
+
+      it 'can set the raw body of the response' do
+        get '/raw-body'
+        expect(last_response.body).to eq('abcdefghijklmnopqrstuvwxyz')
+      end
+
+      it 'can disable the response body completely' do
+        get '/no-body'
+        expect(last_response.body).to be_empty
+      end
+    end
   end
 end

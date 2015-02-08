@@ -1,12 +1,15 @@
 module Regal
   class Response
-    attr_accessor :status, :body
+    attr_accessor :status, :body, :raw_body
     attr_reader :headers
+
+    EMPTY_BODY = [].freeze
 
     def initialize
       @status = 200
       @headers = {}
       @body = nil
+      @raw_body = nil
       @finished = false
     end
 
@@ -16,6 +19,10 @@ module Regal
 
     def finished?
       @finished
+    end
+
+    def no_body
+      @raw_body = EMPTY_BODY
     end
 
     def [](n)
@@ -33,7 +40,9 @@ module Regal
     private
 
     def rack_body
-      if @body.is_a?(String)
+      if @raw_body
+        @raw_body
+      elsif @body.is_a?(String)
         [@body]
       else
         @body
