@@ -29,6 +29,12 @@ module Regal
       end
     end
 
+    describe '#env' do
+      it 'returns the object given to #initialize' do
+        expect(request.env).to equal(env)
+      end
+    end
+
     describe '#parameters' do
       context 'returns a hash that' do
         it 'includes query string parameters' do
