@@ -111,6 +111,7 @@ module Regal
 
     SLASH = '/'.freeze
     PATH_CAPTURES_KEY = 'regal.path_captures'.freeze
+    PATH_COMPONENTS_KEY = 'regal.path_components'.freeze
     METHOD_NOT_ALLOWED_RESPONSE = [405, {}.freeze, [].freeze].freeze
     NOT_FOUND_RESPONSE = [404, {}.freeze, [].freeze].freeze
     EMPTY_BODY = ''.freeze
@@ -131,14 +132,16 @@ module Regal
     end
 
     def call(env)
-      path_components = env[Rack::PATH_INFO].split(SLASH)
-      path_components.shift
-      env[PATH_CAPTURES_KEY] = {}
-      internal_call(env, path_components)
-    end
-
-    def internal_call(env, path_components)
-      if path_components.empty?
+      path_components = env[PATH_COMPONENTS_KEY] ||= env[Rack::PATH_INFO].split(SLASH).drop(1)
+      path_component = path_components.shift
+      if path_component && (app = @routes[path_component])
+        dynamic_route = !@routes.key?(path_component)
+        if dynamic_route
+          env[PATH_CAPTURES_KEY] ||= {}
+          env[PATH_CAPTURES_KEY][app.name] = path_component
+        end
+        app.call(env)
+      elsif path_component.nil?
         if (handler = @handlers[env[Rack::REQUEST_METHOD]])
           request = Request.new(env)
           response = Response.new
@@ -154,12 +157,6 @@ module Regal
         else
           METHOD_NOT_ALLOWED_RESPONSE
         end
-      elsif (app = @routes[path_components.first])
-        unless @routes.key?(path_components.first)
-          env[PATH_CAPTURES_KEY][app.name] = path_components.first
-        end
-        path_components.shift
-        app.internal_call(env, path_components)
       else
         NOT_FOUND_RESPONSE
       end
