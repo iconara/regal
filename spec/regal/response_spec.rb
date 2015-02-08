@@ -22,21 +22,19 @@ module Regal
         expect(response[2]).to eq(%w[hello])
         expect(response[3]).to be_nil
       end
-    end
 
-    describe '#body=' do
-      it 'wraps Strings in an array' do
-        response.body = 'hello'
-        expect(response[2]).to eq(['hello'])
+      it 'wraps string bodies in an array' do
+        expect(response[2]).to eq(%w[hello])
       end
 
-      it 'keeps Enumerables as-is' do
+      it 'leaves objects that respond to #each as-is' do
         response.body = %w[one two three]
         expect(response[2]).to eq(%w[one two three])
       end
 
-      it 'raises an ArgumentError when passed anything else' do
-        expect { response.body = 54 }.to raise_error(ArgumentError, /must be a String or Enumerable/)
+      it 'leaves Rack incompatible bodies as-is' do
+        response.body = 123
+        expect(response[2]).to eq(123)
       end
     end
   end

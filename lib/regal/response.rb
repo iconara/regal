@@ -1,6 +1,6 @@
 module Regal
   class Response
-    attr_accessor :status
+    attr_accessor :status, :body
     attr_reader :headers
 
     def initialize
@@ -9,26 +9,26 @@ module Regal
       @body = nil
     end
 
-    def body=(body)
-      if body.is_a?(String)
-        @body = [body]
-      elsif body.respond_to?(:each)
-        @body = body
-      else
-        raise ArgumentError, %(Body must be a String or Enumerable)
-      end
-    end
-
     def [](n)
       case n
       when 0 then @status
       when 1 then @headers
-      when 2 then @body
+      when 2 then rack_body
       end
     end
 
     def to_ary
-      [@status, @headers, @body]
+      [@status, @headers, rack_body]
+    end
+
+    private
+
+    def rack_body
+      if @body.is_a?(String)
+        [@body]
+      else
+        @body
+      end
     end
   end
 end
