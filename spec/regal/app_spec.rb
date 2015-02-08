@@ -779,5 +779,28 @@ module Regal
         expect(last_response.body).to be_empty
       end
     end
+
+    context 'an app that responds with no-body response codes' do
+      let :app do
+        App.new do
+          [111, 204, 205, 304].each do |status|
+            route status.to_s do
+              get do |_, response|
+                response.status = status
+                'this will not be returned'
+              end
+            end
+          end
+        end
+      end
+
+      it 'ignore the response body' do
+        [111, 204, 205, 304].each do |status|
+          get "/#{status}"
+          expect(last_response.status).to eq(status)
+          expect(last_response.body).to be_empty
+        end
+      end
+    end
   end
 end

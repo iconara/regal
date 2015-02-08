@@ -184,12 +184,15 @@ module Regal
         end
         unless response.finished?
           result = @actual.instance_exec(request, response, &handler)
-          response.body = result unless response.finished?
+          if request.head? || response.status < 200 || response.status == 204 || response.status == 205 || response.status == 304
+            response.no_body
+          elsif !response.finished?
+            response.body = result
+          end
         end
         @afters.each do |after|
           @actual.instance_exec(request, response, &after)
         end
-        response.body = EMPTY_BODY if request.head?
         response
       else
         METHOD_NOT_ALLOWED_RESPONSE
