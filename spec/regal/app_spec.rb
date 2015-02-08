@@ -802,5 +802,123 @@ module Regal
         end
       end
     end
+
+    context 'an app that raises exceptions' do
+      class SomeNastyError < StandardError; end
+      class AppError < StandardError; end
+      class SpecificError < AppError; end
+
+      let :app do
+        App.new do
+          route 'unhandled' do
+            get do
+              raise 'Bork!'
+            end
+          end
+
+          route 'handled' do
+            rescue_from AppError do |error, request, response|
+              response.body = error.message
+            end
+
+            after do |_, response|
+              response.headers['WasAfterCalled'] = 'yes'
+            end
+
+            get do
+              raise SpecificError, 'Boom!'
+            end
+
+            route 'handled' do
+              get do
+                raise AppError, 'Crash!'
+              end
+            end
+
+            route 'unhandled' do
+              get do
+                raise SomeNastyError
+              end
+            end
+
+            route 'from-before' do
+              before do
+                raise SpecificError, 'Bang!'
+              end
+
+              get do
+              end
+            end
+
+            route 'from-after' do
+              after do
+                raise SpecificError, 'Kazam!'
+              end
+
+              after do |_, response|
+                response.headers['NextAfterWasCalled'] = 'yes'
+              end
+
+              get do
+              end
+            end
+
+            route 'handled-locally' do
+              rescue_from SpecificError do |error, request, response|
+              end
+
+              get do
+                raise SpecificError, 'Bam!'
+              end
+            end
+          end
+        end
+      end
+
+      context 'from handlers' do
+        it 'does not catch them' do
+          expect { get '/unhandled' }.to raise_error('Bork!')
+        end
+
+        it 'delegates them to matching error handlers' do
+          get '/handled'
+          expect(last_response.body).to eq('Boom!')
+        end
+
+        it 'calls after blocks when errors are handled' do
+          get '/handled'
+          expect(last_response.headers['WasAfterCalled']).to eq('yes')
+        end
+
+        it 'lets them bubble all the way up when there are no matching error handlers' do
+          expect { get '/handled/unhandled' }.to raise_error(SomeNastyError)
+        end
+      end
+
+      context 'from before blocks' do
+        it 'delegates them to matching error handlers' do
+          get '/handled/from-before'
+          expect(last_response.body).to eq('Bang!')
+        end
+
+        it 'calls after blocks when errors are handled' do
+          get '/handled/from-before'
+          expect(last_response.headers['WasAfterCalled']).to eq('yes')
+        end
+      end
+
+      context 'from after blocks' do
+        it 'delegates them to matching error handlers' do
+          get '/handled/from-after'
+          expect(last_response.body).to eq('Kazam!')
+        end
+
+        it 'calls the rest of the after blocks when errors are handled' do
+          get '/handled/from-after'
+          expect(last_response.headers['NextAfterWasCalled']).to eq('yes')
+          expect(last_response.headers['WasAfterCalled']).to eq('yes')
+        end
+      end
+    end
   end
 end

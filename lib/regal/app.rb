@@ -23,6 +23,7 @@ module Regal
       @afters = []
       @setups = []
       @middlewares = []
+      @rescuers = []
       @name = name
       class_exec(&block)
       self
@@ -57,6 +58,14 @@ module Regal
         middlewares + @middlewares
       else
         @middlewares && @middlewares.dup
+      end
+    end
+
+    def rescuers
+      if superclass.respond_to?(:rescuers) && (rescuers = superclass.rescuers)
+      rescuers + @rescuers
+      else
+        @rescuers && @rescuers.dup
       end
     end
 
@@ -107,6 +116,10 @@ module Regal
       @afters << block
     end
 
+    def rescue_from(type, &block)
+      @rescuers << [type, block]
+    end
+
     [:get, :head, :options, :delete, :post, :put, :patch].each do |name|
       upcased_name = name.to_s.upcase
       define_method(name) do |&block|
@@ -140,6 +153,7 @@ module Regal
       end
       @befores = self.class.befores
       @afters = self.class.afters.reverse
+      @rescuers = self.class.rescuers
       @routes = self.class.create_routes(args)
       @handlers = self.class.handlers
       @name = self.class.name
@@ -178,25 +192,45 @@ module Regal
       if (handler = @handlers[env[REQUEST_METHOD_KEY]])
         request = Request.new(env)
         response = Response.new
-        @befores.each do |before|
-          break if response.finished?
-          @actual.instance_exec(request, response, &before)
-        end
-        unless response.finished?
-          result = @actual.instance_exec(request, response, &handler)
-          if request.head? || response.status < 200 || response.status == 204 || response.status == 205 || response.status == 304
-            response.no_body
-          elsif !response.finished?
-            response.body = result
+        begin
+          @befores.each do |before|
+            break if response.finished?
+            @actual.instance_exec(request, response, &before)
           end
+          unless response.finished?
+            result = @actual.instance_exec(request, response, &handler)
+            if request.head? || response.status < 200 || response.status == 204 || response.status == 205 || response.status == 304
+              response.no_body
+            elsif !response.finished?
+              response.body = result
+            end
+          end
+        rescue => e
+          handle_error(e, request, response)
         end
         @afters.each do |after|
-          @actual.instance_exec(request, response, &after)
+          begin
+            @actual.instance_exec(request, response, &after)
+          rescue => e
+            handle_error(e, request, response)
+          end
         end
         response
       else
         METHOD_NOT_ALLOWED_RESPONSE
       end
+    end
+
+    def handle_error(e, request, response)
+      handled = false
+      @rescuers.each do |type, handler|
+        if type === e
+          handler.call(e, request, response)
+          handled = true
+          break
+        end
+      end
+      raise unless handled
     end
   end
 end
