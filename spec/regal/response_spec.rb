@@ -23,6 +23,16 @@ module Regal
         expect(response[3]).to be_nil
       end
 
+      it 'implements #[]=' do
+        response[2] = %w[foo]
+        expect(response[2]).to eq(%w[foo])
+      end
+
+      it 'ignores indexes over 2' do
+        response[10] = 10
+        expect(response.to_a.size).to eq(3)
+      end
+
       it 'wraps string bodies in an array' do
         expect(response[2]).to eq(%w[hello])
       end
