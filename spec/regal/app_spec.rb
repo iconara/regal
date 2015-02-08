@@ -172,6 +172,17 @@ module Regal
               end
             end
           end
+
+          route 'redirect-before' do
+            before do |request, response|
+              response.headers['Location'] = 'somewhere/else'
+              response.status = 307
+            end
+
+            get do
+              'not here, sorry'
+            end
+          end
         end
       end
 
@@ -193,6 +204,11 @@ module Regal
       it 'calls all before blocks of a route before the request handler' do
         get '/two-before/another-before'
         expect(last_response.body).to eq('1,2,3,4')
+      end
+
+      it 'gives the before blocks access to the response' do
+        get '/redirect-before'
+        expect(last_response.status).to eq(307)
       end
     end
 
@@ -496,18 +512,16 @@ module Regal
                 'second_level_helper'
               end
 
-              before do |request|
-                request.attributes[:before] = 'before:' << [top_level_helper, first_level_helper, second_level_helper].join(',')
+              before do |_, response|
+                response.body = 'before:' << [top_level_helper, first_level_helper, second_level_helper].join(',')
               end
 
               after do |_, response|
                 response.body += '|after:' << [top_level_helper, first_level_helper, second_level_helper].join(',')
               end
 
-              get do |request|
-                str = request.attributes[:before]
-                str += '|handler:' << [top_level_helper, first_level_helper, second_level_helper].join(',')
-                str
+              get do |_, response|
+                response.body + '|handler:' << [top_level_helper, first_level_helper, second_level_helper].join(',')
               end
             end
           end

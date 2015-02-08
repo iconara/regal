@@ -117,10 +117,10 @@ module Regal
       if path_components.empty?
         if (handler = self.class.handlers[env[Rack::REQUEST_METHOD]])
           request = Request.new(env)
-          @befores.each do |before|
-            instance_exec(request, &before)
-          end
           response = Response.new
+          @befores.each do |before|
+            instance_exec(request, response, &before)
+          end
           response.body = instance_exec(request, response, &handler)
           @afters.each do |after|
             instance_exec(request, response, &after)
