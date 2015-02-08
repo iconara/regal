@@ -12,7 +12,7 @@ module Regal
   end
 
   module RouterDsl
-    attr_reader :name, :handlers
+    attr_reader :name
 
     def create(name=nil, &block)
       @mounted_apps = []
@@ -30,7 +30,7 @@ module Regal
       if superclass.respond_to?(:befores) && (befores = superclass.befores)
         befores + @befores
       else
-        @befores
+        @befores && @befores.dup
       end
     end
 
@@ -38,7 +38,7 @@ module Regal
       if superclass.respond_to?(:afters) && (afters = superclass.afters)
         afters + @afters
       else
-        @afters
+        @afters && @afters.dup
       end
     end
 
@@ -54,6 +54,10 @@ module Regal
         routes[path] = cls.new
       end
       routes
+    end
+
+    def handlers
+      @handlers.dup
     end
 
     def route(s, &block)
