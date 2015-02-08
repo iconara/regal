@@ -2,12 +2,12 @@ require 'rack'
 
 module Regal
   module App
-    def self.create(&block)
-      Class.new(Route).create(&block)
+    def self.create(*args, &block)
+      Class.new(Route).create(nil, &block)
     end
 
-    def self.new(&block)
-      create(&block).new
+    def self.new(*args, &block)
+      create(&block).new(*args)
     end
   end
 
@@ -21,9 +21,18 @@ module Regal
       @handlers = {}
       @befores = []
       @afters = []
+      @setups = []
       @name = name
       class_exec(&block)
       self
+    end
+
+    def setups
+      if superclass.respond_to?(:setups) && (setups = superclass.setups)
+        setups + @setups
+      else
+        @setups && @setups.dup
+      end
     end
 
     def befores
@@ -42,16 +51,16 @@ module Regal
       end
     end
 
-    def routes
+    def create_routes(args)
       routes = {}
       if @dynamic_route
-        routes.default = @dynamic_route.new
+        routes.default = @dynamic_route.new(*args)
       end
       @mounted_apps.each do |app|
-        routes.merge!(app.routes)
+        routes.merge!(app.create_routes(args))
       end
       @static_routes.each do |path, cls|
-        routes[path] = cls.new
+        routes[path] = cls.new(*args)
       end
       routes
     end
@@ -71,6 +80,10 @@ module Regal
 
     def mount(app)
       @mounted_apps << app
+    end
+
+    def setup(&block)
+      @setups << block
     end
 
     def before(&block)
@@ -104,12 +117,15 @@ module Regal
 
     attr_reader :name
 
-    def initialize
+    def initialize(*args)
       @befores = self.class.befores
       @afters = self.class.afters.reverse
-      @routes = self.class.routes
+      @routes = self.class.create_routes(args)
       @handlers = self.class.handlers
       @name = self.class.name
+      self.class.setups.each do |setup|
+        instance_exec(*args, &setup)
+      end
     end
 
     def call(env)

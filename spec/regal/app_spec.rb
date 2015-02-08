@@ -552,5 +552,71 @@ module Regal
         expect(last_response.body).to include('after:top_level_helper,first_level_helper,second_level_helper')
       end
     end
+
+    context 'an app that receives configuration when created' do
+      let :app do
+        App.new(this_thing, that_other_thing) do
+          setup do |*args|
+            @args = args
+          end
+
+          get do
+            @args.join(',')
+          end
+
+          route 'one' do
+            setup do |thing1, thing2|
+              @thing1 = thing1
+              @thing2 = thing2
+            end
+
+            get do
+              [*@args, @thing1, @thing2].join(',')
+            end
+          end
+
+          route 'two' do
+            setup do |thing1, thing2|
+              @thing1 = thing1
+              @thing2 = thing2
+            end
+
+            setup do |_, thing_two|
+              @thing_two = thing_two
+            end
+
+            get do
+              [*@args, @thing1, @thing2, @thing_two].join(',')
+            end
+          end
+        end
+      end
+
+      let :this_thing do
+        double(:this_thing, to_s: 'this_thing')
+      end
+
+      let :that_other_thing do
+        double(:that_other_thing, to_s: 'that_other_thing')
+      end
+
+      it 'calls its setup methods with the configuration' do
+        get '/'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('this_thing,that_other_thing')
+      end
+
+      it 'calls the setup methods of all routes' do
+        get '/one'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('this_thing,that_other_thing,this_thing,that_other_thing')
+      end
+
+      it 'calls all setup methods' do
+        get '/two'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('this_thing,that_other_thing,this_thing,that_other_thing,that_other_thing')
+      end
+    end
   end
 end
