@@ -63,12 +63,15 @@ module Regal
       @afters << block
     end
 
-    def get(&block)
-      @handlers['GET'] = block
+    [:get, :head, :options, :delete, :post, :put, :patch].each do |name|
+      upcased_name = name.to_s.upcase
+      define_method(name) do |&block|
+        @handlers[upcased_name] = block
+      end
     end
 
-    def post(&block)
-      @handlers['POST'] = block
+    def any(&block)
+      @handlers.default = block
     end
   end
 
@@ -79,6 +82,7 @@ module Regal
     PATH_CAPTURES_KEY = 'regal.path_captures'.freeze
     METHOD_NOT_ALLOWED_RESPONSE = [405, {}.freeze, [].freeze].freeze
     NOT_FOUND_RESPONSE = [404, {}.freeze, [].freeze].freeze
+    EMPTY_BODY = ''.freeze
 
     attr_reader :name
 
@@ -117,6 +121,7 @@ module Regal
           @afters.each do |after|
             instance_exec(request, response, &after)
           end
+          response.body = EMPTY_BODY if request.head?
           response
         else
           METHOD_NOT_ALLOWED_RESPONSE

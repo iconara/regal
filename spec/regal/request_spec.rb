@@ -10,6 +10,25 @@ module Regal
       {}
     end
 
+    describe '#request_method' do
+      it 'returns the request method' do
+        env['REQUEST_METHOD'] = 'OPTIONS'
+        expect(request.request_method).to eq('OPTIONS')
+      end
+    end
+
+    describe '#head?' do
+      it 'returns true when the request method is HEAD' do
+        env['REQUEST_METHOD'] = 'HEAD'
+        expect(request.head?).to be_truthy
+      end
+
+      it 'returns false when the request method is not HEAD' do
+        env['REQUEST_METHOD'] = 'POST'
+        expect(request.head?).to be_falsy
+      end
+    end
+
     describe '#parameters' do
       context 'returns a hash that' do
         it 'includes query string parameters' do

@@ -7,6 +7,14 @@ module Regal
       @attributes = {}
     end
 
+    def request_method
+      @env[REQUEST_METHOD_KEY]
+    end
+
+    def head?
+      request_method == HEAD_METHOD
+    end
+
     def parameters
       @parameters ||= begin
         path_captures = @env[Route::PATH_CAPTURES_KEY]
@@ -44,5 +52,7 @@ module Regal
     CONTENT_LENGTH_KEY = 'CONTENT_LENGTH'.freeze
     CONTENT_TYPE_KEY = 'CONTENT_TYPE'.freeze
     RACK_INPUT_KEY = 'rack.input'.freeze
+    REQUEST_METHOD_KEY = 'REQUEST_METHOD'.freeze
+    HEAD_METHOD = 'HEAD'.freeze
   end
 end

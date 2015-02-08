@@ -384,5 +384,103 @@ module Regal
         expect(last_response.body).to eq('hello')
       end
     end
+
+    context 'an app that supports all HTTP methods' do
+      let :app do
+        a = App.create do
+          get do |request|
+            request.request_method
+          end
+
+          head do |request|
+            request.request_method
+          end
+
+          options do |request|
+            request.request_method
+          end
+
+          delete do |request|
+            request.request_method
+          end
+
+          post do |request|
+            request.request_method
+          end
+
+          put do |request|
+            request.request_method
+          end
+
+          patch do |request|
+            request.request_method
+          end
+
+          route 'anything' do
+            any do |request|
+              request.request_method
+            end
+          end
+        end
+        a.new
+      end
+
+      it 'routes GET requests' do
+        get '/'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('GET')
+      end
+
+      it 'routes HEAD requests, but does not respond with any body' do
+        head '/'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to be_empty
+      end
+
+      it 'routes OPTIONS requests' do
+        options '/'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('OPTIONS')
+      end
+
+      it 'routes DELETE requests' do
+        delete '/'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('DELETE')
+      end
+
+      it 'routes POST requests' do
+        post '/'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('POST')
+      end
+
+      it 'routes PUT requests' do
+        put '/'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('PUT')
+      end
+
+      it 'routes PATCH requests' do
+        patch '/'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('PATCH')
+      end
+
+      it 'routes all HTTP requests when there is an any handler' do
+        get '/anything'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('GET')
+        delete '/anything'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('DELETE')
+        head '/anything'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to be_empty
+        put '/anything'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('PUT')
+      end
+    end
   end
 end
