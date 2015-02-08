@@ -179,9 +179,12 @@ module Regal
         request = Request.new(env)
         response = Response.new
         @befores.each do |before|
+          break if response.finished?
           @actual.instance_exec(request, response, &before)
         end
-        response.body = @actual.instance_exec(request, response, &handler)
+        unless response.finished?
+          response.body = @actual.instance_exec(request, response, &handler)
+        end
         @afters.each do |after|
           @actual.instance_exec(request, response, &after)
         end

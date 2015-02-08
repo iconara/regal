@@ -174,13 +174,23 @@ module Regal
           end
 
           route 'redirect-before' do
-            before do |request, response|
+            before do |_, response|
               response.headers['Location'] = 'somewhere/else'
               response.status = 307
+              response.body = 'Go somewhere else'
+              response.finish
+            end
+
+            before do |_, response|
+              response.body = 'whoopiedoo'
             end
 
             get do
-              'not here, sorry'
+              "I'm not called!"
+            end
+
+            after do |_, response|
+              response.headers['WasAfterCalled'] = 'yes'
             end
           end
         end
@@ -209,6 +219,20 @@ module Regal
       it 'gives the before blocks access to the response' do
         get '/redirect-before'
         expect(last_response.status).to eq(307)
+      end
+
+      context 'when the response is marked as finished' do
+        before do
+          get '/redirect-before'
+        end
+
+        it 'does not call further handlers or before blocks when the response is marked as finished' do
+          expect(last_response.body).to eq('Go somewhere else')
+        end
+
+        it 'calls after blocks' do
+          expect(last_response.headers).to include('WasAfterCalled' => 'yes')
+        end
       end
     end
 

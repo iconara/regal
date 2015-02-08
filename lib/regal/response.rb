@@ -7,6 +7,15 @@ module Regal
       @status = 200
       @headers = {}
       @body = nil
+      @finished = false
+    end
+
+    def finish
+      @finished = true
+    end
+
+    def finished?
+      @finished
     end
 
     def [](n)
