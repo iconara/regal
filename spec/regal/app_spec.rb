@@ -1,4 +1,5 @@
 require 'spec_helper'
+require 'json'
 
 module Regal
   describe App do
@@ -188,11 +189,84 @@ module Regal
         expect(last_response.body).to eq('1,2')
       end
 
-      it 'calls all before blocks of a route before the request handler' do
+      it 'calls the before blocks of a route in order' do
         get '/two-before'
         expect(last_response.body).to eq('1,2,3')
+      end
+
+      it 'calls all before blocks of a route before the request handler' do
         get '/two-before/another-before'
         expect(last_response.body).to eq('1,2,3,4')
+      end
+    end
+
+    context 'an app doing work after route handlers' do
+      let :app do
+        a = App.create do
+          after do |_, response|
+            response.headers['Content-Type'] = 'application/json'
+            response.body = JSON.dump(response.body)
+          end
+
+          get do |request|
+            {'root' => true}
+          end
+
+          route 'one-after' do
+            after do |_, response|
+              response.body['list'] << 1
+            end
+
+            get do |request|
+              {'list' => []}
+            end
+          end
+
+          route 'two-after' do
+            after do |request, response|
+              response.body['list'] << 1
+            end
+
+            after do |request, response|
+              response.body['list'] << 2
+            end
+
+            get do |request|
+              {'list' => []}
+            end
+
+            route 'another-after' do
+              after do |request, response|
+                response.body['list'] << 3
+              end
+
+              get do |request|
+                {'list' => []}
+              end
+            end
+          end
+        end
+        a.new
+      end
+
+      it 'calls the after block after the request handler' do
+        get '/'
+        expect(last_response.body).to eq('{"root":true}')
+      end
+
+      it 'calls the after blocks of all routes after the request handler' do
+        get '/one-after'
+        expect(last_response.body).to eq('{"list":[1]}')
+      end
+
+      it 'calls all after blocks of a route in order' do
+        get '/two-after'
+        expect(last_response.body).to eq('{"list":[2,1]}')
+      end
+
+      it 'calls all after blocks of a route after the request handler' do
+        get '/two-after/another-after'
+        expect(last_response.body).to eq('{"list":[3,2,1]}')
       end
     end
 

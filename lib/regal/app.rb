@@ -20,6 +20,7 @@ module Regal
       @dynamic_route = nil
       @handlers = {}
       @befores = []
+      @afters = []
       @name = name
       instance_exec(&block)
       self
@@ -30,6 +31,14 @@ module Regal
         befores + @befores
       else
         @befores
+      end
+    end
+
+    def afters
+      if superclass.respond_to?(:afters) && (afters = superclass.afters)
+        afters + @afters
+      else
+        @afters
       end
     end
 
@@ -48,6 +57,10 @@ module Regal
 
     def before(&block)
       @befores << block
+    end
+
+    def after(&block)
+      @afters << block
     end
 
     def get(&block)
@@ -71,6 +84,7 @@ module Regal
 
     def initialize
       @befores = self.class.befores
+      @afters = self.class.afters.reverse
       @static_routes = {}
       self.class.mounted_apps.each do |app|
         app.static_routes.each do |path, cls|
@@ -100,6 +114,9 @@ module Regal
           end
           response = Response.new
           response.body = instance_exec(request, response, &handler)
+          @afters.each do |after|
+            instance_exec(request, response, &after)
+          end
           response
         else
           METHOD_NOT_ALLOWED_RESPONSE
