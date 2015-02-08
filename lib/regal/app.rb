@@ -118,14 +118,16 @@ module Regal
     attr_reader :name
 
     def initialize(*args)
+      @actual = self.dup
+      self.class.setups.each do |setup|
+        @actual.instance_exec(*args, &setup)
+      end
       @befores = self.class.befores
       @afters = self.class.afters.reverse
       @routes = self.class.create_routes(args)
       @handlers = self.class.handlers
       @name = self.class.name
-      self.class.setups.each do |setup|
-        instance_exec(*args, &setup)
-      end
+      freeze
     end
 
     def call(env)
@@ -141,11 +143,11 @@ module Regal
           request = Request.new(env)
           response = Response.new
           @befores.each do |before|
-            instance_exec(request, response, &before)
+            @actual.instance_exec(request, response, &before)
           end
-          response.body = instance_exec(request, response, &handler)
+          response.body = @actual.instance_exec(request, response, &handler)
           @afters.each do |after|
-            instance_exec(request, response, &after)
+            @actual.instance_exec(request, response, &after)
           end
           response.body = EMPTY_BODY if request.head?
           response
