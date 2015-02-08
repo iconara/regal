@@ -474,5 +474,69 @@ module Regal
         expect(last_response.body).to eq('PUT')
       end
     end
+
+    context 'an app with helper methods' do
+      let :app do
+        App.new do
+          def top_level_helper
+            'top_level_helper'
+          end
+
+          route 'one' do
+            def first_level_helper
+              'first_level_helper'
+            end
+
+            get do
+              first_level_helper
+            end
+
+            route 'two' do
+              def second_level_helper
+                'second_level_helper'
+              end
+
+              before do |request|
+                request.attributes[:before] = 'before:' << [top_level_helper, first_level_helper, second_level_helper].join(',')
+              end
+
+              after do |_, response|
+                response.body += '|after:' << [top_level_helper, first_level_helper, second_level_helper].join(',')
+              end
+
+              get do |request|
+                str = request.attributes[:before]
+                str += '|handler:' << [top_level_helper, first_level_helper, second_level_helper].join(',')
+                str
+              end
+            end
+          end
+        end
+      end
+
+      it 'can use the helper methods defined on the same route as the handler' do
+        get '/one'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('first_level_helper')
+      end
+
+      it 'can use the helper methods defined on all routes above a handler' do
+        get '/one/two'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to include('handler:top_level_helper,first_level_helper,second_level_helper')
+      end
+
+      it 'can use the helper methods in before blocks' do
+        get '/one/two'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to include('before:top_level_helper,first_level_helper,second_level_helper')
+      end
+
+      it 'can use the helper methods in after blocks' do
+        get '/one/two'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to include('after:top_level_helper,first_level_helper,second_level_helper')
+      end
+    end
   end
 end

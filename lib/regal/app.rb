@@ -26,7 +26,7 @@ module Regal
       @befores = []
       @afters = []
       @name = name
-      instance_exec(&block)
+      class_exec(&block)
       self
     end
 
