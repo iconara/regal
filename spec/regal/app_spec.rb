@@ -618,5 +618,98 @@ module Regal
         expect(last_response.body).to eq('this_thing,that_other_thing,this_thing,that_other_thing,that_other_thing')
       end
     end
+
+    context 'an app that uses Rack middleware' do
+      class Reverser
+        def initialize(app)
+          @app = app
+        end
+
+        def call(env)
+          response = @app.call(env)
+          body = response[2][0]
+          body && body.reverse!
+          response
+        end
+      end
+
+      class Uppercaser
+        def initialize(app)
+          @app = app
+        end
+
+        def call(env)
+          response = @app.call(env)
+          body = response[2][0]
+          body && body.upcase!
+          response
+        end
+      end
+
+      class Mutator
+        def initialize(app, &block)
+          @app = app
+          @block = block
+        end
+
+        def call(env)
+          @app.call(@block.call(env))
+        end
+      end
+
+      let :app do
+        App.new do
+          use Reverser
+
+          get do
+            'lorem ipsum'
+          end
+
+          route 'more' do
+            use Uppercaser
+
+            get do
+              'dolor sit'
+            end
+          end
+
+          route 'hello' do
+            use Rack::Runtime, 'Regal'
+            use Mutator do |env|
+              env['app.greeting'] = 'Bonjour'
+              env
+            end
+
+            get do |request|
+              request.env['app.greeting'] + ', ' + request.parameters['name']
+            end
+          end
+        end
+      end
+
+      it 'calls the middleware when processing the request' do
+        get '/'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('muspi merol')
+      end
+
+      it 'calls the middleware of all routes' do
+        get '/more'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('TIS ROLOD')
+      end
+
+      it 'passes arguments when instantiating the middleware' do
+        get '/hello?name=Eve'
+        expect(last_response.status).to eq(200)
+        expect(last_response.headers).to have_key('X-Runtime-Regal')
+      end
+
+      it 'passes blocks when instantiating the middleware' do
+        get '/hello?name=Eve'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('Bonjour, Eve'.reverse)
+      end
+    end
   end
 end

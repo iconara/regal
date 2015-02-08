@@ -22,6 +22,7 @@ module Regal
       @befores = []
       @afters = []
       @setups = []
+      @middlewares = []
       @name = name
       class_exec(&block)
       self
@@ -48,6 +49,14 @@ module Regal
         afters + @afters
       else
         @afters && @afters.dup
+      end
+    end
+
+    def middlewares
+      if superclass.respond_to?(:middlewares) && (middlewares = superclass.middlewares)
+        middlewares + @middlewares
+      else
+        @middlewares && @middlewares.dup
       end
     end
 
@@ -80,6 +89,10 @@ module Regal
 
     def mount(app)
       @mounted_apps << app
+    end
+
+    def use(middleware, *args, &block)
+      @middlewares << [middleware, args, block]
     end
 
     def setup(&block)
@@ -128,6 +141,11 @@ module Regal
       @routes = self.class.create_routes(args)
       @handlers = self.class.handlers
       @name = self.class.name
+      if !self.class.middlewares.empty?
+        @app = self.class.middlewares.reduce(method(:handle)) do |app, (middleware, args, block)|
+          middleware.new(app, *args, &block)
+        end
+      end
       freeze
     end
 
@@ -142,23 +160,33 @@ module Regal
         end
         app.call(env)
       elsif path_component.nil?
-        if (handler = @handlers[env[Rack::REQUEST_METHOD]])
-          request = Request.new(env)
-          response = Response.new
-          @befores.each do |before|
-            @actual.instance_exec(request, response, &before)
-          end
-          response.body = @actual.instance_exec(request, response, &handler)
-          @afters.each do |after|
-            @actual.instance_exec(request, response, &after)
-          end
-          response.body = EMPTY_BODY if request.head?
-          response
+        if @app
+          @app.call(env)
         else
-          METHOD_NOT_ALLOWED_RESPONSE
+          handle(env)
         end
       else
         NOT_FOUND_RESPONSE
+      end
+    end
+
+    private
+
+    def handle(env)
+      if (handler = @handlers[env[Rack::REQUEST_METHOD]])
+        request = Request.new(env)
+        response = Response.new
+        @befores.each do |before|
+          @actual.instance_exec(request, response, &before)
+        end
+        response.body = @actual.instance_exec(request, response, &handler)
+        @afters.each do |after|
+          @actual.instance_exec(request, response, &after)
+        end
+        response.body = EMPTY_BODY if request.head?
+        response
+      else
+        METHOD_NOT_ALLOWED_RESPONSE
       end
     end
   end
