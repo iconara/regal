@@ -196,11 +196,7 @@ module Regal
         begin
           request = env[Regal::REQUEST_KEY]
           response = env[Regal::RESPONSE_KEY]
-          env[Regal::BEFORES_KEY].each do |before|
-            unless response.finished?
-              @actual.instance_exec(request, response, @app_context, &before)
-            end
-          end
+          run_befores(request, response, env)
           unless response.finished?
             result = @actual.instance_exec(request, response, @app_context, &handler)
             if request.head? || response.status < 200 || response.status == 204 || response.status == 205 || response.status == 304
@@ -212,16 +208,28 @@ module Regal
         rescue => e
           handle_error(e, request, response, env)
         end
-        env[Regal::AFTERS_KEY].reverse_each do |after|
-          begin
-            @actual.instance_exec(request, response, @app_context, &after)
-          rescue => e
-            handle_error(e, request, response, env)
-          end
-        end
+        run_afters(request, response, env)
         response
       else
         METHOD_NOT_ALLOWED_RESPONSE
+      end
+    end
+
+    def run_befores(request, response, env)
+      env[Regal::BEFORES_KEY].each do |before|
+        unless response.finished?
+          @actual.instance_exec(request, response, @app_context, &before)
+        end
+      end
+    end
+
+    def run_afters(request, response, env)
+      env[Regal::AFTERS_KEY].reverse_each do |after|
+        begin
+          @actual.instance_exec(request, response, @app_context, &after)
+        rescue => e
+          handle_error(e, request, response, env)
+        end
       end
     end
 
