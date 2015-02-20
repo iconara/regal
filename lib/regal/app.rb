@@ -226,15 +226,13 @@ module Regal
     end
 
     def handle_error(e, request, response, env)
-      handled = false
       env[Regal::RESCUERS_KEY].reverse_each do |type, handler|
         if type === e
           @actual.instance_exec(e, request, response, @app_context, &handler)
-          handled = true
-          break
+          return
         end
       end
-      raise unless handled
+      raise e
     end
   end
 
