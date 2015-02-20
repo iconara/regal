@@ -129,6 +129,22 @@ module Regal
     end
 
     context 'an app doing work before route handlers' do
+      MountedBeforeApp = App.create do
+        before do |request|
+          request.attributes[:some_key] << 2
+        end
+
+        route 'in-mounted-app' do
+          before do |request|
+            request.attributes[:some_key] << 3
+          end
+
+          get do |request|
+            request.attributes.values.join(',')
+          end
+        end
+      end
+
       let :app do
         App.new do
           before do |request|
@@ -193,6 +209,8 @@ module Regal
               response.headers['WasAfterCalled'] = 'yes'
             end
           end
+
+          mount MountedBeforeApp
         end
       end
 
@@ -234,9 +252,32 @@ module Regal
           expect(last_response.headers).to include('WasAfterCalled' => 'yes')
         end
       end
+
+      context 'with a mounted app' do
+        it 'runs the before blocks from both the mounting and the mounted app' do
+          get '/in-mounted-app'
+          expect(last_response.body).to eq('1,2,3')
+        end
+      end
     end
 
     context 'an app doing work after route handlers' do
+      MountedAfterApp = App.create do
+        after do |_, response|
+          response.body['list'] << 1
+        end
+
+        route 'in-mounted-app' do
+          after do |_, response|
+            response.body['list'] << 2
+          end
+
+          get do
+            {'list' => []}
+          end
+        end
+      end
+
       let :app do
         App.new do
           after do |_, response|
@@ -281,6 +322,8 @@ module Regal
               end
             end
           end
+
+          mount MountedAfterApp
         end
       end
 
@@ -302,6 +345,13 @@ module Regal
       it 'calls all after blocks of a route after the request handler' do
         get '/two-after/another-after'
         expect(last_response.body).to eq('{"list":[3,2,1]}')
+      end
+
+      context 'with a mounted app' do
+        it 'runs the after blocks from both the mounting and the mounted app' do
+          get '/in-mounted-app'
+          expect(last_response.body).to eq('{"list":[2,1]}')
+        end
       end
     end
 
@@ -681,6 +731,21 @@ module Regal
         end
       end
 
+      MountedMiddlewareApp = App.create do
+        use Rack::Runtime, 'MountedMiddlewareApp'
+
+        route 'in-mounted-app' do
+          use Mutator do |env|
+            env['app.greeting'] = 'Marhaban'
+            env
+          end
+
+          get do |request|
+            request.env['app.greeting']
+          end
+        end
+      end
+
       let :app do
         App.new do
           use Reverser
@@ -708,6 +773,8 @@ module Regal
               request.env['app.greeting'] + ', ' + request.parameters['name']
             end
           end
+
+          mount MountedMiddlewareApp
         end
       end
 
@@ -733,6 +800,15 @@ module Regal
         get '/hello?name=Eve'
         expect(last_response.status).to eq(200)
         expect(last_response.body).to eq('Bonjour, Eve'.reverse)
+      end
+
+      context 'with a mounted app' do
+        it 'calls the middleware from both the mounting and the mounted app' do
+          get '/in-mounted-app'
+          expect(last_response.status).to eq(200)
+          expect(last_response.body).to eq('nabahraM')
+          expect(last_response.headers).to have_key('X-Runtime-MountedMiddlewareApp')
+        end
       end
     end
 
@@ -808,6 +884,34 @@ module Regal
       class AppError < StandardError; end
       class SpecificError < AppError; end
 
+      MountedRescuingApp = App.create do
+        rescue_from SpecificError do |_, _, response|
+          response.body = 'handled SpecificError in the mounted app'
+        end
+
+        route 'raise-specific-error' do
+          get do
+            raise SpecificError, 'Blam!'
+          end
+        end
+
+        route 'raise-app-error' do
+          get do
+            raise AppError, 'Kaboom!'
+          end
+        end
+
+        route 'raise-and-and-handle-app-error' do
+          rescue_from AppError do |_, _, response|
+            response.body = 'handled AppError in the mounted app'
+          end
+
+          get do
+            raise AppError, 'Kaboom!'
+          end
+        end
+      end
+
       let :app do
         App.new do
           route 'unhandled' do
@@ -872,6 +976,14 @@ module Regal
               end
             end
           end
+
+          route 'with-mounted-app' do
+            rescue_from AppError do |_, _, response|
+              response.body = 'handled AppError in the mounting app'
+            end
+
+            mount MountedRescuingApp
+          end
         end
       end
 
@@ -917,6 +1029,23 @@ module Regal
           get '/handled/from-after'
           expect(last_response.headers['NextAfterWasCalled']).to eq('yes')
           expect(last_response.headers['WasAfterCalled']).to eq('yes')
+        end
+      end
+
+      context 'from mounted apps' do
+        it 'delegates them to matching error handlers in the mounting app' do
+          get '/with-mounted-app/raise-app-error'
+          expect(last_response.body).to eq('handled AppError in the mounting app')
+        end
+
+        it 'delegates them to matching error handlers declared at the top of the mounted app' do
+          get '/with-mounted-app/raise-specific-error'
+          expect(last_response.body).to eq('handled SpecificError in the mounted app')
+        end
+
+        it 'delegates them to matching error handlers declared in routes of the mounted app' do
+          get '/with-mounted-app/raise-and-and-handle-app-error'
+          expect(last_response.body).to eq('handled AppError in the mounted app')
         end
       end
     end

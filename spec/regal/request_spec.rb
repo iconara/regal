@@ -43,7 +43,7 @@ module Regal
         end
 
         it 'includes path captures' do
-          env[Route::PATH_CAPTURES_KEY] = {:echo => 'polo'}
+          env[Regal::PATH_CAPTURES_KEY] = {:echo => 'polo'}
           expect(request.parameters).to include(:echo => 'polo')
         end
 

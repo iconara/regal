@@ -38,47 +38,36 @@ module Regal
     end
 
     def befores
-      if superclass.respond_to?(:befores) && (befores = superclass.befores)
-        befores + @befores
-      else
-        @befores && @befores.dup
-      end
+      @befores.dup
     end
 
     def afters
-      if superclass.respond_to?(:afters) && (afters = superclass.afters)
-        afters + @afters
-      else
-        @afters && @afters.dup
-      end
-    end
-
-    def middlewares
-      if superclass.respond_to?(:middlewares) && (middlewares = superclass.middlewares)
-        middlewares + @middlewares
-      else
-        @middlewares && @middlewares.dup
-      end
+      @afters.dup
     end
 
     def rescuers
-      if superclass.respond_to?(:rescuers) && (rescuers = superclass.rescuers)
-      rescuers + @rescuers
-      else
-        @rescuers && @rescuers.dup
+      @rescuers.dup
+    end
+
+    def apply_middleware(app)
+      @middlewares.reduce(app) do |app, (middleware, args, block)|
+        middleware.new(app, *args, &block)
       end
     end
 
     def create_routes(args)
       routes = {}
-      if @dynamic_route
-        routes.default = @dynamic_route.new(*args)
-      end
       @mounted_apps.each do |app|
-        routes.merge!(app.create_routes(args))
+        mounted_routes = app.create_routes(args).each_with_object({}) do |(name, route), r|
+          r[name] = app.apply_middleware(MountGraft.new(app, route))
+        end
+        routes.merge!(mounted_routes)
       end
       @static_routes.each do |path, cls|
         routes[path] = cls.new(*args)
+      end
+      if @dynamic_route
+        routes.default = @dynamic_route.new(*args)
       end
       routes
     end
@@ -132,19 +121,45 @@ module Regal
     end
   end
 
+  REQUEST_KEY = 'regal.request'.freeze
+  RESPONSE_KEY = 'regal.response'.freeze
+  BEFORES_KEY = 'regal.before'.freeze
+  AFTERS_KEY = 'regal.after'.freeze
+  RESCUERS_KEY = 'regal.rescue_from'.freeze
+  PATH_CAPTURES_KEY = 'regal.path_captures'.freeze
+  PATH_COMPONENTS_KEY = 'regal.path_components'.freeze
+
+  module Preparations
+    SLASH = '/'.freeze
+    PATH_INFO_KEY = 'PATH_INFO'.freeze
+
+    def prepare(env)
+      env[REQUEST_KEY] ||= Request.new(env)
+      env[RESPONSE_KEY] ||= Response.new
+      env[PATH_COMPONENTS_KEY] ||= env[PATH_INFO_KEY].split(SLASH).drop(1)
+      befores = (env[BEFORES_KEY] ||= [])
+      befores.concat(@befores)
+      afters = (env[AFTERS_KEY] ||= [])
+      afters.concat(@afters.reverse)
+      rescuers = (env[RESCUERS_KEY] ||= [])
+      rescuers.concat(@rescuers)
+    end
+  end
+
   class Route
     extend RouterDsl
+    include Preparations
 
-    SLASH = '/'.freeze
-    PATH_CAPTURES_KEY = 'regal.path_captures'.freeze
-    PATH_COMPONENTS_KEY = 'regal.path_components'.freeze
-    PATH_INFO_KEY = 'PATH_INFO'.freeze
-    REQUEST_METHOD_KEY = 'REQUEST_METHOD'.freeze
     METHOD_NOT_ALLOWED_RESPONSE = [405, {}.freeze, [].freeze].freeze
     NOT_FOUND_RESPONSE = [404, {}.freeze, [].freeze].freeze
     EMPTY_BODY = ''.freeze
+    REQUEST_METHOD_KEY = 'REQUEST_METHOD'.freeze
 
     attr_reader :name
+
+    def self.new(*args)
+      apply_middleware(allocate.send(:initialize, *args))
+    end
 
     def initialize(*args)
       @actual = self.dup
@@ -157,22 +172,17 @@ module Regal
       @routes = self.class.create_routes(args)
       @handlers = self.class.handlers
       @name = self.class.name
-      if !self.class.middlewares.empty?
-        @app = self.class.middlewares.reduce(method(:handle)) do |app, (middleware, args, block)|
-          middleware.new(app, *args, &block)
-        end
-      end
       freeze
     end
 
     def call(env)
-      path_components = env[PATH_COMPONENTS_KEY] ||= env[PATH_INFO_KEY].split(SLASH).drop(1)
-      path_component = path_components.shift
+      prepare(env)
+      path_component = env[Regal::PATH_COMPONENTS_KEY].shift
       if path_component && (app = @routes[path_component])
         dynamic_route = !@routes.key?(path_component)
         if dynamic_route
-          env[PATH_CAPTURES_KEY] ||= {}
-          env[PATH_CAPTURES_KEY][app.name] = path_component
+          env[Regal::PATH_CAPTURES_KEY] ||= {}
+          env[Regal::PATH_CAPTURES_KEY][app.name] = path_component
         end
         app.call(env)
       elsif path_component.nil?
@@ -190,10 +200,10 @@ module Regal
 
     def handle(env)
       if (handler = @handlers[env[REQUEST_METHOD_KEY]])
-        request = Request.new(env)
-        response = Response.new
         begin
-          @befores.each do |before|
+          request = env[Regal::REQUEST_KEY]
+          response = env[Regal::RESPONSE_KEY]
+          env[Regal::BEFORES_KEY].each do |before|
             break if response.finished?
             @actual.instance_exec(request, response, &before)
           end
@@ -206,13 +216,13 @@ module Regal
             end
           end
         rescue => e
-          handle_error(e, request, response)
+          handle_error(e, request, response, env)
         end
-        @afters.each do |after|
+        env[Regal::AFTERS_KEY].reverse_each do |after|
           begin
             @actual.instance_exec(request, response, &after)
           rescue => e
-            handle_error(e, request, response)
+            handle_error(e, request, response, env)
           end
         end
         response
@@ -221,9 +231,9 @@ module Regal
       end
     end
 
-    def handle_error(e, request, response)
+    def handle_error(e, request, response, env)
       handled = false
-      @rescuers.each do |type, handler|
+      env[Regal::RESCUERS_KEY].reverse_each do |type, handler|
         if type === e
           handler.call(e, request, response)
           handled = true
@@ -231,6 +241,22 @@ module Regal
         end
       end
       raise unless handled
+    end
+  end
+
+  class MountGraft
+    include Preparations
+
+    def initialize(mounted_app, route)
+      @befores = mounted_app.befores
+      @afters = mounted_app.afters
+      @rescuers = mounted_app.rescuers
+      @route = route
+    end
+
+    def call(env)
+      prepare(env)
+      @route.call(env)
     end
   end
 end

@@ -17,7 +17,7 @@ module Regal
 
     def parameters
       @parameters ||= begin
-        path_captures = @env[Route::PATH_CAPTURES_KEY]
+        path_captures = @env[Regal::PATH_CAPTURES_KEY]
         query = Rack::Utils.parse_query(@env[QUERY_STRING_KEY])
         query.merge!(path_captures) if path_captures
         query.freeze
