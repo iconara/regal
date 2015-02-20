@@ -235,7 +235,7 @@ module Regal
       handled = false
       env[Regal::RESCUERS_KEY].reverse_each do |type, handler|
         if type === e
-          handler.call(e, request, response)
+          @actual.instance_exec(e, request, response, &handler)
           handled = true
           break
         end

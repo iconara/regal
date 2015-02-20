@@ -572,6 +572,10 @@ module Regal
             'top_level_helper'
           end
 
+          rescue_from StandardError do |_, _, response|
+            response.body = top_level_helper
+          end
+
           route 'one' do
             def first_level_helper
               'first_level_helper'
@@ -599,6 +603,12 @@ module Regal
               end
             end
           end
+
+          route 'boom' do
+            get do
+              raise 'Bork'
+            end
+          end
         end
       end
 
@@ -624,6 +634,12 @@ module Regal
         get '/one/two'
         expect(last_response.status).to eq(200)
         expect(last_response.body).to include('after:top_level_helper,first_level_helper,second_level_helper')
+      end
+
+      it 'can use the helper methods in rescue blocks' do
+        get '/boom'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to include('top_level_helper')
       end
     end
 
