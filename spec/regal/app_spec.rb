@@ -145,10 +145,15 @@ module Regal
         end
       end
 
+      let :state do
+        {}
+      end
+
       let :app do
-        App.new do
-          before do |request|
+        App.new(state: state) do
+          before do |request, _, app|
             request.attributes[:some_key] = [1]
+            app.attributes[:state][:before] = :called
           end
 
           get do |request|
@@ -239,6 +244,14 @@ module Regal
         expect(last_response.status).to eq(307)
       end
 
+      context 'when the path does not match any route' do
+        it 'does not run any before blocks' do
+          get '/does-not-exist'
+          expect(last_response.status).to eq(404)
+          expect(state).to be_empty
+        end
+      end
+
       context 'when the response is marked as finished' do
         before do
           get '/redirect-before'
@@ -278,11 +291,16 @@ module Regal
         end
       end
 
+      let :state do
+        {}
+      end
+
       let :app do
-        App.new do
-          after do |_, response|
+        App.new(state: state) do
+          after do |_, response, app|
             response.headers['Content-Type'] = 'application/json'
             response.body = JSON.dump(response.body)
+            app.attributes[:state][:after] = :called
           end
 
           get do |request|
@@ -370,6 +388,14 @@ module Regal
       it 'calls all after blocks of a route after the request handler' do
         get '/two-after/another-after'
         expect(last_response.body).to eq('{"list":[3,2,1]}')
+      end
+
+      context 'when the path does not match any route' do
+        it 'does not run any before blocks' do
+          get '/does-not-exist'
+          expect(last_response.status).to eq(404)
+          expect(state).to be_empty
+        end
       end
 
       context 'with a mounted app' do
