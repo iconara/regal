@@ -2,12 +2,12 @@ require 'rack'
 
 module Regal
   module App
-    def self.create(*args, &block)
+    def self.create(&block)
       Class.new(Route).create(nil, &block)
     end
 
-    def self.new(*args, &block)
-      create(&block).new(*args)
+    def self.new(attributes={}, &block)
+      create(&block).new(attributes)
     end
   end
 
@@ -21,20 +21,11 @@ module Regal
       @handlers = {}
       @befores = []
       @afters = []
-      @setups = []
       @middlewares = []
       @rescuers = []
       @name = name
       class_exec(&block)
       self
-    end
-
-    def setups
-      if superclass.respond_to?(:setups) && (setups = superclass.setups)
-        setups + @setups
-      else
-        @setups && @setups.dup
-      end
     end
 
     def befores
@@ -55,19 +46,19 @@ module Regal
       end
     end
 
-    def create_routes(args)
+    def create_routes(attributes)
       routes = {}
       @mounted_apps.each do |app|
-        mounted_routes = app.create_routes(args).each_with_object({}) do |(name, route), r|
+        mounted_routes = app.create_routes(attributes).each_with_object({}) do |(name, route), r|
           r[name] = app.apply_middleware(MountGraft.new(app, route))
         end
         routes.merge!(mounted_routes)
       end
       @static_routes.each do |path, cls|
-        routes[path] = cls.new(*args)
+        routes[path] = cls.new(attributes)
       end
       if @dynamic_route
-        routes.default = @dynamic_route.new(*args)
+        routes.default = @dynamic_route.new(attributes)
       end
       routes
     end
@@ -91,10 +82,6 @@ module Regal
 
     def use(middleware, *args, &block)
       @middlewares << [middleware, args, block]
-    end
-
-    def setup(&block)
-      @setups << block
     end
 
     def before(&block)
@@ -146,6 +133,14 @@ module Regal
     end
   end
 
+  class AppContext
+    attr_reader :attributes
+
+    def initialize(attributes)
+      @attributes = attributes.dup.freeze
+    end
+  end
+
   class Route
     extend RouterDsl
     include Preparations
@@ -157,19 +152,17 @@ module Regal
 
     attr_reader :name
 
-    def self.new(*args)
-      apply_middleware(allocate.send(:initialize, *args))
+    def self.new(attributes={})
+      apply_middleware(allocate.send(:initialize, attributes))
     end
 
-    def initialize(*args)
+    def initialize(attributes)
       @actual = self.dup
-      self.class.setups.each do |setup|
-        @actual.instance_exec(*args, &setup)
-      end
+      @app_context = AppContext.new(attributes)
       @befores = self.class.befores
       @afters = self.class.afters.reverse
       @rescuers = self.class.rescuers
-      @routes = self.class.create_routes(args)
+      @routes = self.class.create_routes(attributes)
       @handlers = self.class.handlers
       @name = self.class.name
       freeze
@@ -205,10 +198,10 @@ module Regal
           response = env[Regal::RESPONSE_KEY]
           env[Regal::BEFORES_KEY].each do |before|
             break if response.finished?
-            @actual.instance_exec(request, response, &before)
+            @actual.instance_exec(request, response, @app_context, &before)
           end
           unless response.finished?
-            result = @actual.instance_exec(request, response, &handler)
+            result = @actual.instance_exec(request, response, @app_context, &handler)
             if request.head? || response.status < 200 || response.status == 204 || response.status == 205 || response.status == 304
               response.no_body
             elsif !response.finished?
@@ -220,7 +213,7 @@ module Regal
         end
         env[Regal::AFTERS_KEY].reverse_each do |after|
           begin
-            @actual.instance_exec(request, response, &after)
+            @actual.instance_exec(request, response, @app_context, &after)
           rescue => e
             handle_error(e, request, response, env)
           end
@@ -235,7 +228,7 @@ module Regal
       handled = false
       env[Regal::RESCUERS_KEY].reverse_each do |type, handler|
         if type === e
-          @actual.instance_exec(e, request, response, &handler)
+          @actual.instance_exec(e, request, response, @app_context, &handler)
           handled = true
           break
         end
