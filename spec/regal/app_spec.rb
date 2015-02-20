@@ -628,6 +628,22 @@ module Regal
     end
 
     context 'an app that receives configuration when created' do
+      MountedSetupApp = App.create do
+        setup do |*args|
+          @setup_in_mounted_app = 'setup_in_mounted_app'
+        end
+
+        route 'in-mounted-app' do
+          setup do |*args|
+            @setup_in_mounted_route = 'setup_in_mounted_route'
+          end
+
+          get do
+            [*@args, @setup_in_mounted_app, @setup_in_mounted_route].join(',')
+          end
+        end
+      end
+
       let :app do
         App.new(this_thing, that_other_thing) do
           setup do |*args|
@@ -663,6 +679,8 @@ module Regal
               [*@args, @thing1, @thing2, @thing_two].join(',')
             end
           end
+
+          mount MountedSetupApp
         end
       end
 
@@ -690,6 +708,14 @@ module Regal
         get '/two'
         expect(last_response.status).to eq(200)
         expect(last_response.body).to eq('this_thing,that_other_thing,this_thing,that_other_thing,that_other_thing')
+      end
+
+      context 'with a mounted app' do
+        it 'calls the setup methods on both the mounting and mounted app', pending: true do
+          get '/in-mounted-app'
+          expect(last_response.status).to eq(200)
+          expect(last_response.body).to eq('this_thing,that_other_thing,setup_in_mounted_app,setup_in_mounted_route')
+        end
       end
     end
 
