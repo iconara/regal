@@ -197,8 +197,9 @@ module Regal
           request = env[Regal::REQUEST_KEY]
           response = env[Regal::RESPONSE_KEY]
           env[Regal::BEFORES_KEY].each do |before|
-            break if response.finished?
-            @actual.instance_exec(request, response, @app_context, &before)
+            unless response.finished?
+              @actual.instance_exec(request, response, @app_context, &before)
+            end
           end
           unless response.finished?
             result = @actual.instance_exec(request, response, @app_context, &handler)
