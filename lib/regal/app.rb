@@ -199,9 +199,7 @@ module Regal
           run_befores(request, response, env)
           unless response.finished?
             result = @actual.instance_exec(request, response, @app_context, &handler)
-            if request.head? || response.status < 200 || response.status == 204 || response.status == 205 || response.status == 304
-              response.no_body
-            elsif !response.finished?
+            unless response.finished?
               response.body = result
             end
           end
@@ -209,6 +207,9 @@ module Regal
           handle_error(e, request, response, env)
         end
         run_afters(request, response, env)
+        if request.head? || response.status < 200 || response.status == 204 || response.status == 205 || response.status == 304
+          response.no_body
+        end
         response
       else
         METHOD_NOT_ALLOWED_RESPONSE

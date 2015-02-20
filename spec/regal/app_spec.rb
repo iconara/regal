@@ -910,6 +910,17 @@ module Regal
               end
             end
           end
+
+          route 'with-after' do
+            get do |_, response|
+              response.status = 204
+              'this will not be returned'
+            end
+
+            after do |_, response|
+              response.body = 'this will not be returned either'
+            end
+          end
         end
       end
 
@@ -919,6 +930,12 @@ module Regal
           expect(last_response.status).to eq(status)
           expect(last_response.body).to be_empty
         end
+      end
+
+      it 'ignores response bodies set by after blocks' do
+        get '/with-after'
+        expect(last_response.status).to eq(204)
+        expect(last_response.body).to be_empty
       end
     end
 
