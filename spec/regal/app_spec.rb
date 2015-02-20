@@ -323,6 +323,31 @@ module Regal
             end
           end
 
+          route 'stops-early' do
+            before do |_, response|
+              response.body = 'before1'
+              response.finish
+            end
+
+            after do |_, response|
+              response.body << '|after1'
+            end
+
+            route 'not-called' do
+              before do |_, response|
+                response.body << '|before2'
+              end
+
+              after do |_, response|
+                response.body << '|after2'
+              end
+
+              get do |_, response|
+                response.body << '|handler'
+              end
+            end
+          end
+
           mount MountedAfterApp
         end
       end
@@ -351,6 +376,13 @@ module Regal
         it 'runs the after blocks from both the mounting and the mounted app' do
           get '/in-mounted-app'
           expect(last_response.body).to eq('{"list":[2,1]}')
+        end
+      end
+
+      context 'when the request is finished by a before block' do
+        it 'runs only the after blocks from the same level and up', pending: true do
+          get '/stops-early/not-called'
+          expect(last_response.body).to eq('"before1|after1"')
         end
       end
     end
