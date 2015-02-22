@@ -972,6 +972,17 @@ module Regal
         end
       end
 
+      MountedNonRescuingApp = App.create do
+        after do
+          raise AppError, 'Kaboom!'
+        end
+
+        route 'raise-from-after' do
+          get do
+          end
+        end
+      end
+
       let :app do
         App.new do
           route 'unhandled' do
@@ -1043,6 +1054,7 @@ module Regal
             end
 
             mount MountedRescuingApp
+            mount MountedNonRescuingApp
           end
         end
       end
@@ -1106,6 +1118,13 @@ module Regal
         it 'delegates them to matching error handlers declared in routes of the mounted app' do
           get '/with-mounted-app/raise-and-and-handle-app-error'
           expect(last_response.body).to eq('handled AppError in the mounted app')
+        end
+
+        context 'in after blocks' do
+          it 'delegates them to a matching error handler' do
+            get '/with-mounted-app/raise-from-after'
+            expect(last_response.body).to eq('handled AppError in the mounting app')
+          end
         end
       end
     end
