@@ -3,7 +3,7 @@ require 'rack'
 module Regal
   module App
     def self.create(&block)
-      Class.new(Route).create(nil, &block)
+      Class.new(Route).create(&block)
     end
 
     def self.new(attributes={}, &block)
