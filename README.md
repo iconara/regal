@@ -34,14 +34,14 @@ ThingsApp = Regal::App.create do
       # a copy of this hash is available through request.attributes,
       # and is shared between all before, after and rescue blocks, as
       # well as the handler blocks, like here
-      request.attributes[:database].load_all_the_things.map { |thing| {'name' => thing} }
+      request.attributes[:database].values
     end
 
     # this handler uses both the request and the response
     post do |request, response|
       # request bodies are easily available
-      thing = request.body.read
-      request.attributes[:database].add_thing(thing)
+      thing = JSON.load(request.body.read)
+      request.attributes[:database].store(thing['name'], thing)
       # this is how you set the response code and headers
       response.status = 201
       response.headers['Location'] = '/things'
@@ -57,7 +57,17 @@ ThingsApp = Regal::App.create do
       #
       # they are available in all child routes, but not sibling routes
       def find_thing(database, name)
-        database.load_all_the_things.find { |t| t == name }
+        database.fetch(name)
+      end
+
+      # rescue_from works a bit like regular rescue, if any before or after
+      # block, or handler in this or any child route raises an error, the
+      # first matching `rescue_from` block will be called – and unless it
+      # re-raises the error it is assumed to have been handled and the after
+      # blocks will be called
+      rescue_from KeyError do |error, request, response|
+        response.status = 404
+        response.body = {'error' => 'Thing not found'}
       end
 
       # before blocks run before the handler and can inspect the request
@@ -69,9 +79,12 @@ ThingsApp = Regal::App.create do
           # and after blocks by setting request attributes
           #
           # it might look like this is a way to share things between requests,
-          # but each request has its own copy – of course, if you put something
-          # mutable in the attributes when you create the app all requests
-          # can mutate it, so be careful when your app server is threaded
+          # but each request has its own copy, so anything you add is only
+          # going to be accessible during the request
+          #
+          # you're of course allowed to put mutable objects in the attributes,
+          # like this app's `:database`, which makes it possible to share
+          # things between requests
           request.attributes[:thing] = thing
         else
           response.status = 404
@@ -86,7 +99,7 @@ ThingsApp = Regal::App.create do
         # this will not run if a before block stops the request processing
         # and it can access anything that the before blocks have put in
         # the attributes hash
-        {'name' => request.attributes[:thing]}
+        request.attributes[:thing]
       end
     end
   end
@@ -111,8 +124,8 @@ ThingsApp = Regal::App.create do
 end
 
 # to run your app with Rack you need to create an instance,
-# the arguments you pass here are available in request.attributes
-run ThingsApp.new(database: database)
+# the arguments you pass here are available as request.attributes
+run ThingsApp.new(database: {})
 ```
 
 You can do lots more with Regal, check out the tests to see more.
