@@ -23,55 +23,55 @@ ThingsApp = Regal::App.create do
   # map directly to the request path, so this route
   # matches requests that begin with /things
   route 'things' do
-    # routes can define setup blocks, the arguments passed
-    # are the arguments to the `new` method when you
-    # instantiate your app (see below)
-    setup do |db|
-      @database = db
-      @database[:things] = %w[box fox button]
-    end
-
     # a route can have a handler for each HTTP method, these
     # are passed request and response objects, but unless you
-    # need them you can leave those out
+    # need them you can leave those out, like this one does
+    #
     # the response is what is returned from the handler, but
     # below you will see how to make sure it's formatted properly
-    get do
-      # handlers have access to instance variables, but unlike most
-      # Rack frameworks they are not request scoped, but remain
-      # between requests
-      @database[:things].map { |thing| {'name' => thing} }
+    get do |request|
+      # when you create an instance of an app you can give it a hash,
+      # a copy of this hash is available through request.attributes,
+      # and is shared between all before, after and rescue blocks, as
+      # well as the handler blocks, like here
+      request.attributes[:database].load_all_the_things.map { |thing| {'name' => thing} }
     end
 
     # this handler uses both the request and the response
     post do |request, response|
       # request bodies are easily available
       thing = request.body.read
-      @database[:things] << thing
+      request.attributes[:database].add_thing(thing)
+      # this is how you set the response code and headers
       response.status = 201
       response.headers['Location'] = '/things'
-      @database[:things]
+      # the handler's return value will be set as response body
+      thing
     end
 
-    # routes with symbols are wildcards and acts as captures, so for the
+    # routes with symbols are wildcards and capture their value, so for the
     # path /things/bees the parameter `:thing` will get the value "bees"
     route :thing do
       # helper methods don't need to be defined in special `helper` blocks,
       # they can be defined like this
+      #
       # they are available in all child routes, but not sibling routes
-      def find_thing(name)
-        @database[:things].find { |t| t == name }
+      def find_thing(database, name)
+        database.load_all_the_things.find { |t| t == name }
       end
 
       # before blocks run before the handler and can inspect the request
       # and stop the request processing by calling #finish on the response
       before do |request, response|
-        thing = find_thing(request.parameters[:thing])
+        thing = find_thing(request.attributes[:database], request.parameters[:thing])
         if thing
           # before blocks can communicate with other before blocks, handlers
           # and after blocks by setting request attributes
-          # the request attribute hash is just a hash that exists for the
-          # duration of the request processing
+          #
+          # it might look like this is a way to share things between requests,
+          # but each request has its own copy – of course, if you put something
+          # mutable in the attributes when you create the app all requests
+          # can mutate it, so be careful when your app server is threaded
           request.attributes[:thing] = thing
         else
           response.status = 404
@@ -111,8 +111,8 @@ ThingsApp = Regal::App.create do
 end
 
 # to run your app with Rack you need to create an instance,
-# the arguments you pass here are passed to the setup block(s)
-run ThingsApp.new({})
+# the arguments you pass here are available in request.attributes
+run ThingsApp.new(database: database)
 ```
 
 You can do lots more with Regal, check out the tests to see more.
