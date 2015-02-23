@@ -140,7 +140,7 @@ module Regal
 
     def initialize(attributes, middlewares=nil)
       middlewares = Array(middlewares) + self.class.middlewares
-      @app_context = AppContext.new(attributes)
+      @attributes = attributes.dup.freeze
       @name = self.class.name
       @befores = self.class.befores
       @afters = self.class.afters
@@ -169,7 +169,7 @@ module Regal
       if matching_route && matching_route.can_handle?(request_method)
         env[PATH_CAPTURES_KEY] = path_captures
         parent_routes << matching_route
-        request = Request.new(env)
+        request = Request.new(env, @attributes)
         response = Response.new
         begin
           parent_routes.each do |parent_route|
@@ -177,7 +177,6 @@ module Regal
           end
           env['regal.request'] = request
           env['regal.response'] = response
-          env['regal.app_context'] = @app_context
           matching_route.handle(request_method, env)
         rescue => e
           handle_error(parent_routes, e, request, response)
@@ -211,7 +210,7 @@ module Regal
     def before(request, response)
       @befores.each do |before|
         unless response.finished?
-          instance_exec(request, response, @app_context, &before)
+          instance_exec(request, response, &before)
         end
       end
     end
@@ -219,7 +218,7 @@ module Regal
     def after(request, response)
       @afters.reverse_each do |after|
         begin
-          instance_exec(request, response, @app_context, &after)
+          instance_exec(request, response, &after)
         rescue => e
           raise unless rescue_error(e, request, response)
         end
@@ -229,7 +228,7 @@ module Regal
     def rescue_error(e, request, response)
       @rescuers.reverse_each do |type, handler|
         if type === e
-          instance_exec(e, request, response, @app_context, &handler)
+          instance_exec(e, request, response, &handler)
           return true
         end
       end
@@ -281,8 +280,7 @@ module Regal
     def call(env)
       request = env['regal.request']
       response = env['regal.response']
-      app_context = env['regal.app_context']
-      result = @route.instance_exec(request, response, app_context, &@handler)
+      result = @route.instance_exec(request, response, &@handler)
       unless response.finished?
         response.body = result
       end

@@ -140,7 +140,7 @@ module Regal
           end
 
           get do |request|
-            request.attributes.values.join(',')
+            request.attributes[:some_key].join(',')
           end
         end
       end
@@ -151,9 +151,9 @@ module Regal
 
       let :app do
         App.new(state: state) do
-          before do |request, _, app|
+          before do |request, _|
             request.attributes[:some_key] = [1]
-            app.attributes[:state][:before] = :called
+            request.attributes[:state][:before] = :called
           end
 
           get do |request|
@@ -297,10 +297,10 @@ module Regal
 
       let :app do
         App.new(state: state) do
-          after do |_, response, app|
+          after do |request, response|
             response.headers['Content-Type'] = 'application/json'
             response.body = JSON.dump(response.body)
-            app.attributes[:state][:after] = :called
+            request.attributes[:state][:after] = :called
           end
 
           get do |request|
@@ -703,16 +703,36 @@ module Regal
 
     context 'an app that receives configuration when created' do
       let :app do
-        App.new(fuzzinator: fuzzinator, blip_count: 3) do
+        App.new(fuzzinator: fuzzinator, blip_count: 3, counter: 0, str: '') do
           route 'blip' do
-            get do |request, _, app|
-              "blip\n" * app.attributes[:blip_count]
+            get do |request|
+              "blip\n" * request.attributes[:blip_count]
             end
           end
 
           route 'fuzz' do
-            get do |request, _, app|
-              app.attributes[:fuzzinator].fuzz(request.parameters['s'])
+            get do |request|
+              request.attributes[:fuzzinator].fuzz(request.parameters['s'])
+            end
+          end
+
+          route 'increment' do
+            before do |request|
+              request.attributes[:counter] += 1
+            end
+
+            get do |request|
+              request.attributes[:counter].to_s
+            end
+          end
+
+          route 'append' do
+            before do |request|
+              request.attributes[:str] << '1'
+            end
+
+            get do |request|
+              request.attributes[:str].to_s
             end
           end
         end
@@ -726,13 +746,27 @@ module Regal
         allow(fuzzinator).to receive(:fuzz) { |s| s.split('').join('z') }
       end
 
-      it 'can access the arguments given to .new through the attributes hash' do
+      it 'can access the hash given to .new through the request attributes hash' do
         get '/blip'
         expect(last_response.status).to eq(200)
         expect(last_response.body).to eq("blip\nblip\nblip\n")
         get '/fuzz?s=badaboom'
         expect(last_response.status).to eq(200)
         expect(last_response.body).to eq('bzazdzazbzozozm')
+      end
+
+      it 'gives each request its own copy of the attributes' do
+        get '/increment'
+        get '/increment'
+        get '/increment'
+        expect(last_response.body).to eq('1')
+      end
+
+      it 'does not make a deep copy of the attributes' do
+        get '/append'
+        get '/append'
+        get '/append'
+        expect(last_response.body).to eq('111')
       end
     end
 

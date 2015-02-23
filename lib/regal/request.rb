@@ -2,9 +2,9 @@ module Regal
   class Request
     attr_reader :env, :attributes
 
-    def initialize(env)
+    def initialize(env, attributes_prototype={})
       @env = env
-      @attributes = {}
+      @attributes = attributes_prototype.dup
     end
 
     def request_method

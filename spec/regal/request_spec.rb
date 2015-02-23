@@ -88,6 +88,14 @@ module Regal
         request.attributes[:foo] = 'bar'
         expect(request.attributes).to include(:foo => 'bar')
       end
+
+      it 'returns a copy of the hash passed to #initialize' do
+        attributes = {:foo => 'bar'}
+        request = described_class.new(env, attributes)
+        expect(request.attributes).to include(:foo => 'bar')
+        request.attributes[:bar] = 'foo'
+        expect(attributes).not_to have_key(:bar)
+      end
     end
   end
 end
