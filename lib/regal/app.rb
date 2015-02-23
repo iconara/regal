@@ -175,9 +175,7 @@ module Regal
           parent_routes.each do |parent_route|
             parent_route.before(request, response)
           end
-          env['regal.request'] = request
-          env['regal.response'] = response
-          matching_route.handle(request_method, env)
+          matching_route.handle(request_method, request, response, env)
         rescue => e
           handle_error(parent_routes, e, request, response)
         end
@@ -203,8 +201,15 @@ module Regal
       !!@handlers[request_method]
     end
 
-    def handle(request_method, env)
-      @handlers[request_method].call(env)
+    def handle(request_method, request, response, env)
+      handler = @handlers[request_method]
+      if handler.is_a?(Handler)
+        handler.handle(request, response)
+      else
+        env[Handler::REQUEST_KEY] = request
+        env[Handler::RESPONSE_KEY] = response
+        handler.call(env)
+      end
     end
 
     def before(request, response)
@@ -271,14 +276,21 @@ module Regal
   end
 
   class Handler
+    REQUEST_KEY = 'regal.request'.freeze
+    RESPONSE_KEY = 'regal.response'.freeze
+
     def initialize(route, handler)
       @route = route
       @handler = handler
     end
 
     def call(env)
-      request = env['regal.request']
-      response = env['regal.response']
+      request = env[REQUEST_KEY]
+      response = env[RESPONSE_KEY]
+      handle(request, response)
+    end
+
+    def handle(request, response)
       result = @route.instance_exec(request, response, &@handler)
       unless response.finished?
         response.body = result
@@ -304,8 +316,8 @@ module Regal
       @route.can_handle?(request_method)
     end
 
-    def handle(*args)
-      @route.handle(*args)
+    def handle(request_method, request, response, env)
+      @route.handle(request_method, request, response, env)
     end
 
     def before(*args)
