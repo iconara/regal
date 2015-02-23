@@ -288,33 +288,9 @@ module Regal
     end
   end
 
-  module Graft
+  class MountGraft
     attr_reader :name,
                 :routes
-
-    def can_handle?(request_method)
-      @route.can_handle?(request_method)
-    end
-
-    def handle(*args)
-      @route.handle(*args)
-    end
-
-    def before(*args)
-      @route.before(*args)
-    end
-
-    def after(*args)
-      @route.after(*args)
-    end
-
-    def rescue_error(*args)
-      @route.rescue_error(*args)
-    end
-  end
-
-  class MountGraft
-    include Graft
 
     def initialize(mounted_app, route)
       @route = route
@@ -325,15 +301,23 @@ module Regal
       @rescuers = mounted_app.rescuers
     end
 
+    def can_handle?(request_method)
+      @route.can_handle?(request_method)
+    end
+
+    def handle(*args)
+      @route.handle(*args)
+    end
+
     def before(*args)
       @befores.each do |before|
         @route.instance_exec(*args, &before)
       end
-      super
+      @route.before(*args)
     end
 
     def after(*args)
-      super
+      @route.after(*args)
       @afters.reverse_each do |after|
         begin
           @route.instance_exec(*args, &after)
@@ -344,7 +328,7 @@ module Regal
     end
 
     def rescue_error(e, *args)
-      if super
+      if @route.rescue_error(e, *args)
         true
       else
         @rescuers.reverse_each do |type, handler|
