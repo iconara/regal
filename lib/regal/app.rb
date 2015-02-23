@@ -245,8 +245,8 @@ module Regal
     end
 
     def setup_handlers(middlewares)
+      @handlers = self.class.handlers
       if middlewares.nil? || middlewares.empty?
-        @handlers = self.class.handlers
         @handlers.merge!(@handlers) do |_, handler, _|
           Handler.new(self, handler)
         end
@@ -254,7 +254,6 @@ module Regal
           @handlers.default = Handler.new(self, @handlers.default)
         end
       else
-        @handlers = self.class.handlers
         @handlers.merge!(@handlers) do |_, handler, _|
           wrap_in_middleware(middlewares, Handler.new(self, handler))
         end
