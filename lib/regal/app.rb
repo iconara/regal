@@ -148,33 +148,16 @@ module Regal
     end
 
     def call(env)
-      path_components = env[PATH_INFO_KEY].split(SLASH).drop(1)
-      path_captures = {}
-      matching_route = self
-      parent_routes = []
-      path_components.each do |path_component|
-        if matching_route
-          parent_route = matching_route
-          parent_routes << parent_route
-          matching_route = matching_route.routes[path_component]
-          if matching_route && !parent_route.routes.include?(path_component)
-            path_captures[matching_route.name] = path_component
-          end
-        end
-      end
+      path_components = path_components = env[PATH_INFO_KEY].split(SLASH).drop(1)
+      parent_routes, path_captures = match_route(path_components)
+      matching_route = parent_routes.last
       request_method = env[REQUEST_METHOD_KEY]
       if matching_route && matching_route.can_handle?(request_method)
-        parent_routes << matching_route
         request = Request.new(env, path_captures, @attributes)
         response = Response.new
         finishing_route = nil
         begin
-          parent_routes.each do |parent_route|
-            parent_route.before(request, response)
-            if response.finished? && finishing_route.nil?
-              finishing_route = parent_route
-            end
-          end
+          finishing_route = run_befores(parent_routes, request, response)
           unless response.finished?
             result = matching_route.handle(request_method, request, response)
             unless response.finished?
@@ -184,17 +167,7 @@ module Regal
         rescue => e
           handle_error(parent_routes, e, request, response)
         end
-        skip_afters = !finishing_route.nil?
-        parent_routes.reverse_each do |parent_route|
-          if !skip_afters || finishing_route == parent_route
-            skip_afters = false
-            begin
-              parent_route.after(request, response)
-            rescue => e
-              handle_error(parent_routes, e, request, response)
-            end
-          end
-        end
+        run_afters(parent_routes, finishing_route, request, response)
         if no_body_response?(request_method, response)
           response.no_body
         end
@@ -204,10 +177,6 @@ module Regal
       else
         NOT_FOUND_RESPONSE
       end
-    end
-
-    def no_body_response?(request_method, response)
-      request_method == HEAD_METHOD || response.status < 200 || response.status == 204 || response.status == 205 || response.status == 304
     end
 
     def can_handle?(request_method)
@@ -220,6 +189,49 @@ module Regal
     end
 
     private
+
+    def no_body_response?(request_method, response)
+      request_method == HEAD_METHOD || response.status < 200 || response.status == 204 || response.status == 205 || response.status == 304
+    end
+
+    def match_route(path_components)
+      path_captures = {}
+      matching_route = self
+      parent_routes = [self]
+      path_components.each do |path_component|
+        wildcard_route = !matching_route.routes.include?(path_component)
+        matching_route = matching_route.routes[path_component]
+        if matching_route && wildcard_route
+          path_captures[matching_route.name] = path_component
+        end
+        parent_routes << matching_route
+      end
+      [parent_routes, path_captures]
+    end
+
+    def run_befores(parent_routes, request, response)
+      parent_routes.each do |parent_route|
+        parent_route.before(request, response)
+        if response.finished?
+          return parent_route
+        end
+      end
+      nil
+    end
+
+    def run_afters(parent_routes, finishing_route, request, response)
+      skip_afters = !finishing_route.nil?
+      parent_routes.reverse_each do |parent_route|
+        if !skip_afters || finishing_route == parent_route
+          skip_afters = false
+          begin
+            parent_route.after(request, response)
+          rescue => e
+            handle_error(parent_routes, e, request, response)
+          end
+        end
+      end
+    end
 
     def handle_error(parent_routes, e, request, response)
       parent_routes.reverse_each do |parent_route|
