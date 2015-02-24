@@ -816,6 +816,11 @@ module Regal
         get '/no-body'
         expect(last_response.body).to be_empty
       end
+
+      it 'assumes that a nil body is no body' do
+        get '/nil-body'
+        expect(last_response.body).to be_empty
+      end
     end
 
     context 'an app that responds with no-body response codes' do

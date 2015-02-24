@@ -53,6 +53,8 @@ module Regal
         @raw_body
       elsif @body.is_a?(String)
         [@body]
+      elsif @body.nil?
+        EMPTY_BODY
       else
         @body
       end
