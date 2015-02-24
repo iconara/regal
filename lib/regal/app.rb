@@ -199,10 +199,12 @@ module Regal
       matching_route = self
       parent_routes = [self]
       path_components.each do |path_component|
-        wildcard_route = !matching_route.routes.include?(path_component)
-        matching_route = matching_route.routes[path_component]
-        if matching_route && wildcard_route
-          path_captures[matching_route.name] = path_component
+        if matching_route
+          wildcard_route = !matching_route.routes.include?(path_component)
+          matching_route = matching_route.routes[path_component]
+          if matching_route && wildcard_route
+            path_captures[matching_route.name] = path_component
+          end
         end
         parent_routes << matching_route
       end

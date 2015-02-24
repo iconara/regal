@@ -47,6 +47,8 @@ module Regal
       it 'responds with 404 when the path does not match any route' do
         get '/hello/fnord'
         expect(last_response.status).to eq(404)
+        get '/foo/bar/baz/qux'
+        expect(last_response.status).to eq(404)
       end
 
       it 'responds with 405 when the path matches a route but there is no handler for the HTTP method' do
