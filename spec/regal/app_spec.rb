@@ -370,6 +370,47 @@ module Regal
             end
           end
 
+          route 'raises' do
+            before do |_, response|
+              response.body = 'before1'
+            end
+
+            after do |_, response|
+              response.body << '|after1'
+            end
+
+            rescue_from RuntimeError do
+            end
+
+            route 'not-called' do
+              before do |_, response|
+                response.body << '|before2'
+              end
+
+              after do |_, response|
+                response.body << '|after2'
+              end
+
+              get do |_, response|
+                response.body << '|handler'
+              end
+            end
+
+            route 'raises' do
+              before do |_, response|
+                response.body << '|before2'
+                raise 'Burk!'
+              end
+
+              after do |_, response|
+                response.body << '|after2'
+              end
+
+              get do
+              end
+            end
+          end
+
           mount MountedAfterApp
         end
       end
@@ -413,6 +454,13 @@ module Regal
         it 'runs only the after blocks from the same level and up' do
           get '/stops-early/not-called'
           expect(last_response.body).to eq('"before1|after1"')
+        end
+      end
+
+      context 'when a before block raises an error and it is handled by a rescue block' do
+        it 'runs only the after blocks from the same level as the rescue block, and up' do
+          get '/raises/raises'
+          expect(last_response.body).to eq('"before1|before2|after1"')
         end
       end
     end
@@ -799,6 +847,11 @@ module Regal
               'I will not be used'
             end
           end
+
+          route 'nil-body' do
+            get do
+            end
+          end
         end
       end
 
@@ -970,6 +1023,31 @@ module Regal
                 raise SpecificError, 'Bam!'
               end
             end
+
+            route 'at-the-right-level' do
+              rescue_from SpecificError do |_, _, response|
+                response.headers['HandledAtLevel'] = '2'
+              end
+
+              route 'level-3' do
+                before do
+                  raise SpecificError, 'Badam!'
+                end
+
+                rescue_from SpecificError do |_, _, response|
+                  response.headers['HandledAtLevel'] = '3'
+                end
+
+                route 'level-4' do
+                  rescue_from SpecificError do |_, _, response|
+                    response.headers['HandledAtLevel'] = '4'
+                  end
+
+                  get do
+                  end
+                end
+              end
+            end
           end
 
           route 'with-mounted-app' do
@@ -1009,10 +1087,16 @@ module Regal
           expect(last_response.body).to eq('Bang!')
         end
 
+        it 'delegates them to matching error handlers at the same level, not below' do
+          get '/handled/at-the-right-level/level-3/level-4'
+          expect(last_response.headers).to include('HandledAtLevel' => '3')
+        end
+
         it 'calls after blocks when errors are handled' do
           get '/handled/from-before'
           expect(last_response.headers['WasAfterCalled']).to eq('yes')
         end
+
       end
 
       context 'from after blocks' do

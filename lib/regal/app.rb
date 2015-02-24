@@ -165,7 +165,7 @@ module Regal
             end
           end
         rescue => e
-          handle_error(parent_routes, e, request, response)
+          handle_error(parent_routes, finishing_route, e, request, response)
         end
         run_afters(parent_routes, finishing_route, request, response)
         if no_body_response?(request_method, response)
@@ -213,31 +213,42 @@ module Regal
 
     def run_befores(parent_routes, request, response)
       parent_routes.each do |parent_route|
-        parent_route.before(request, response)
-        if response.finished?
-          return parent_route
+        begin
+          parent_route.before(request, response)
+          if response.finished?
+            return parent_route
+          end
+        rescue => e
+          response.finish
+          return handle_error(parent_routes, parent_route, e, request, response)
         end
       end
       nil
     end
 
     def run_afters(parent_routes, finishing_route, request, response)
-      skip_afters = !finishing_route.nil?
+      skip_routes = !finishing_route.nil?
       parent_routes.reverse_each do |parent_route|
-        if !skip_afters || finishing_route == parent_route
-          skip_afters = false
+        if !skip_routes || finishing_route == parent_route
+          skip_routes = false
           begin
             parent_route.after(request, response)
           rescue => e
-            handle_error(parent_routes, e, request, response)
+            handle_error(parent_routes, parent_route, e, request, response)
           end
         end
       end
     end
 
-    def handle_error(parent_routes, e, request, response)
+    def handle_error(parent_routes, finishing_route, e, request, response)
+      skip_routes = !finishing_route.nil?
       parent_routes.reverse_each do |parent_route|
-        return if parent_route.rescue_error(e, request, response)
+        if !skip_routes || finishing_route == parent_route
+          skip_routes = false
+          if parent_route.rescue_error(e, request, response)
+            return parent_route
+          end
+        end
       end
       raise e
     end
