@@ -301,7 +301,7 @@ module Regal
         App.new(state: state) do
           after do |request, response|
             response.headers['Content-Type'] = 'application/json'
-            response.body = JSON.dump(response.body)
+            response.body = response.body.is_a?(String) ? %("#{response.body}") : JSON.dump(response.body)
             request.attributes[:state][:after] = :called
           end
 
