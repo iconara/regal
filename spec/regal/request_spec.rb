@@ -3,10 +3,14 @@ require 'spec_helper'
 module Regal
   describe Request do
     let :request do
-      described_class.new(env)
+      described_class.new(env, path_captures)
     end
 
     let :env do
+      {}
+    end
+
+    let :path_captures do
       {}
     end
 
@@ -43,7 +47,7 @@ module Regal
         end
 
         it 'includes path captures' do
-          env[Regal::PATH_CAPTURES_KEY] = {:echo => 'polo'}
+          path_captures[:echo] = 'polo'
           expect(request.parameters).to include(:echo => 'polo')
         end
 
@@ -91,7 +95,7 @@ module Regal
 
       it 'returns a copy of the hash passed to #initialize' do
         attributes = {:foo => 'bar'}
-        request = described_class.new(env, attributes)
+        request = described_class.new(env, path_captures, attributes)
         expect(request.attributes).to include(:foo => 'bar')
         request.attributes[:bar] = 'foo'
         expect(attributes).not_to have_key(:bar)

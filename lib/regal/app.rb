@@ -103,8 +103,6 @@ module Regal
     end
   end
 
-  PATH_CAPTURES_KEY = 'regal.path_captures'.freeze
-
   class AppContext
     attr_reader :attributes
 
@@ -185,9 +183,8 @@ module Regal
       end
       request_method = env[REQUEST_METHOD_KEY]
       if matching_route && matching_route.can_handle?(request_method)
-        env[PATH_CAPTURES_KEY] = path_captures
         parent_routes << matching_route
-        request = Request.new(env, @attributes)
+        request = Request.new(env, path_captures, @attributes)
         response = Response.new
         finishing_route = nil
         begin
