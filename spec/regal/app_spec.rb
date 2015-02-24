@@ -408,7 +408,7 @@ module Regal
       end
 
       context 'when the request is finished by a before block' do
-        it 'runs only the after blocks from the same level and up', pending: true do
+        it 'runs only the after blocks from the same level and up' do
           get '/stops-early/not-called'
           expect(last_response.body).to eq('"before1|after1"')
         end

@@ -171,9 +171,13 @@ module Regal
         parent_routes << matching_route
         request = Request.new(env, @attributes)
         response = Response.new
+        finishing_route = nil
         begin
           parent_routes.each do |parent_route|
             parent_route.before(request, response)
+            if response.finished? && finishing_route.nil?
+              finishing_route = parent_route
+            end
           end
           unless response.finished?
             matching_route.handle(request_method, request, response, env)
@@ -181,11 +185,15 @@ module Regal
         rescue => e
           handle_error(parent_routes, e, request, response)
         end
+        skip_afters = !finishing_route.nil?
         parent_routes.reverse_each do |parent_route|
-          begin
-            parent_route.after(request, response)
-          rescue => e
-            handle_error(parent_routes, e, request, response)
+          if !skip_afters || finishing_route == parent_route
+            skip_afters = false
+            begin
+              parent_route.after(request, response)
+            rescue => e
+              handle_error(parent_routes, e, request, response)
+            end
           end
         end
         if request.head? || response.status < 200 || response.status == 204 || response.status == 205 || response.status == 304
