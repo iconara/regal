@@ -1,10 +1,23 @@
 module Regal
   class Response
+    # @!attribute [rw] status
+    # @return [Hash]
+
+    # @!attribute [rw] body
+    # @return [Object]
+
+    # @!attribute [rw] raw_body
+    # @return [Enumerable]
+
+    # @!attribute [r] headers
+    # @return [Hash]
+
     attr_accessor :status, :body, :raw_body
     attr_reader :headers
 
     EMPTY_BODY = [].freeze
 
+    # @private
     def initialize
       @status = 200
       @headers = {}
@@ -13,18 +26,23 @@ module Regal
       @finished = false
     end
 
+    # @return [void]
     def finish
       @finished = true
     end
 
+    # @return [true, false]
     def finished?
       @finished
     end
 
+    # @return [Array<()>]
     def no_body
       @raw_body = EMPTY_BODY
     end
 
+    # @param [Integer] n
+    # @return [Integer, Hash, Enumerable]
     def [](n)
       case n
       when 0 then @status
@@ -33,6 +51,9 @@ module Regal
       end
     end
 
+    # @param [Integer] n
+    # @param [Integer, Hash, Enumerable] v
+    # @return [Integer, Hash, Enumerable]
     def []=(n, v)
       case n
       when 0 then @status = v
@@ -41,6 +62,7 @@ module Regal
       end
     end
 
+    # @return [Array<(Integer, Hash, Enumerable)>]
     def to_ary
       [@status, @headers, rack_body]
     end

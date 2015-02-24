@@ -1,13 +1,22 @@
 module Regal
   class Request
-    attr_reader :env, :attributes
+    # @!attribute [r] env
+    # @return [Hash]
 
+    # @!attribute [r] attributes
+    # @return [Hash]
+
+    attr_reader :env,
+                :attributes
+
+    # @private
     def initialize(env, path_captures, attributes_prototype={})
       @env = env
       @path_captures = path_captures
       @attributes = attributes_prototype.dup
     end
 
+    # @return [Hash]
     def parameters
       @parameters ||= begin
         query = Rack::Utils.parse_query(@env[QUERY_STRING_KEY])
@@ -16,6 +25,7 @@ module Regal
       end
     end
 
+    # @return [Hash]
     def headers
       @headers ||= begin
         headers = @env.each_with_object({}) do |(key, value), headers|
@@ -36,9 +46,12 @@ module Regal
       end
     end
 
+    # @return [IO]
     def body
       @env[RACK_INPUT_KEY]
     end
+
+    private
 
     HEADER_PREFIX = 'HTTP_'.freeze
     QUERY_STRING_KEY = 'QUERY_STRING'.freeze

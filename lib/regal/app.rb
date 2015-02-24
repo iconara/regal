@@ -2,22 +2,29 @@ require 'rack'
 
 module Regal
   module App
+    # @yield []
+    # @return [Class<Route>]
     def self.create(&block)
       Class.new(Route).create(&block)
     end
 
+    # @param [Hash] attributes
+    # @yield []
+    # @return [Route]
     def self.new(attributes={}, &block)
       create(&block).new(attributes)
     end
   end
 
   module RouterDsl
+    # @private
     attr_reader :name,
                 :befores,
                 :afters,
                 :rescuers,
                 :handlers
 
+    # @private
     def create(name=nil, &block)
       @name = name
       @mounted_apps = []
@@ -36,6 +43,7 @@ module Regal
       self
     end
 
+    # @private
     def create_routes(attributes)
       routes = {}
       @mounted_apps.each do |app|
@@ -54,6 +62,9 @@ module Regal
       routes
     end
 
+    # @param [String, Symbol] s
+    # @yield []
+    # @return [void]
     def route(s, &block)
       r = Class.new(self).create(s, &block)
       if s.is_a?(Symbol)
@@ -61,26 +72,49 @@ module Regal
       else
         @routes[s] = r
       end
+      nil
     end
 
+    # @param [Class<Route>] app
+    # @return [void]
     def mount(app)
       @mounted_apps << app
+      nil
     end
 
+    # @yield []
+    # @return [void]
     def scope(&block)
       mount(Class.new(self).create(&block))
     end
 
+    # @yield [request, response]
+    # @yieldparam request [Request]
+    # @yieldparam response [Response]
+    # @return [void]
     def before(&block)
       @befores << block
+      nil
     end
 
+    # @yield [request, response]
+    # @yieldparam request [Request]
+    # @yieldparam response [Response]
+    # @return [void]
     def after(&block)
       @afters << block
+      nil
     end
 
+    # @param [Class<Error>] type
+    # @yield [error, request, response]
+    # @yieldparam error [Error]
+    # @yieldparam request [Request]
+    # @yieldparam response [Response]
+    # @return [void]
     def rescue_from(type, &block)
       @rescuers << [type, block]
+      nil
     end
 
     [:get, :head, :options, :delete, :post, :put, :patch].each do |name|
@@ -90,11 +124,58 @@ module Regal
       end
     end
 
+    # @!method get
+    # @yield [request, response]
+    # @yieldparam request [Request]
+    # @yieldparam response [Response]
+    # @return [void]
+
+    # @!method head
+    # @yield [request, response]
+    # @yieldparam request [Request]
+    # @yieldparam response [Response]
+    # @return [void]
+
+    # @!method options
+    # @yield [request, response]
+    # @yieldparam request [Request]
+    # @yieldparam response [Response]
+    # @return [void]
+
+    # @!method delete
+    # @yield [request, response]
+    # @yieldparam request [Request]
+    # @yieldparam response [Response]
+    # @return [void]
+
+    # @!method post
+    # @yield [request, response]
+    # @yieldparam request [Request]
+    # @yieldparam response [Response]
+    # @return [void]
+
+    # @!method put
+    # @yield [request, response]
+    # @yieldparam request [Request]
+    # @yieldparam response [Response]
+    # @return [void]
+
+    # @!method patch
+    # @yield [request, response]
+    # @yieldparam request [Request]
+    # @yieldparam response [Response]
+    # @return [void]
+
+    # @yield [request, response]
+    # @yieldparam request [Request]
+    # @yieldparam response [Response]
+    # @return [void]
     def any(&block)
       @handlers.default = block
     end
   end
 
+  # @private
   module Arounds
     def before(request, response)
       @befores.each do |before|
@@ -129,16 +210,11 @@ module Regal
     extend RouterDsl
     include Arounds
 
-    METHOD_NOT_ALLOWED_RESPONSE = [405, {}.freeze, [].freeze].freeze
-    NOT_FOUND_RESPONSE = [404, {}.freeze, [].freeze].freeze
-    SLASH = '/'.freeze
-    PATH_INFO_KEY = 'PATH_INFO'.freeze
-    REQUEST_METHOD_KEY = 'REQUEST_METHOD'.freeze
-    HEAD_METHOD = 'HEAD'.freeze
-
+    # @private
     attr_reader :name,
                 :routes
 
+    # @param [Hash] attributes
     def initialize(attributes)
       @attributes = attributes.dup.freeze
       @name = self.class.name
@@ -151,6 +227,8 @@ module Regal
       freeze
     end
 
+    # @param [Hash] env
+    # @return [Array<(Integer, Hash, Enumerable)>]
     def call(env)
       path_components = path_components = env[PATH_INFO_KEY].split(SLASH).drop(1)
       parent_routes, path_captures = match_route(path_components)
@@ -183,16 +261,25 @@ module Regal
       end
     end
 
+    # @private
     def can_handle?(request_method)
       !!@handlers[request_method]
     end
 
+    # @private
     def handle(request_method, request, response)
       handler = @handlers[request_method]
       instance_exec(request, response, &handler)
     end
 
     private
+
+    METHOD_NOT_ALLOWED_RESPONSE = [405, {}.freeze, [].freeze].freeze
+    NOT_FOUND_RESPONSE = [404, {}.freeze, [].freeze].freeze
+    SLASH = '/'.freeze
+    PATH_INFO_KEY = 'PATH_INFO'.freeze
+    REQUEST_METHOD_KEY = 'REQUEST_METHOD'.freeze
+    HEAD_METHOD = 'HEAD'.freeze
 
     def no_body_response?(request_method, response)
       request_method == HEAD_METHOD || response.status < 200 || response.status == 204 || response.status == 205 || response.status == 304
@@ -258,6 +345,7 @@ module Regal
     end
   end
 
+  # @private
   class MountGraft
     include Arounds
 
