@@ -166,8 +166,7 @@ module Regal
     REQUEST_METHOD_KEY = 'REQUEST_METHOD'.freeze
 
     attr_reader :name,
-                :routes,
-                :handlers
+                :routes
 
     def initialize(attributes, middlewares=nil)
       middlewares = Array(middlewares) + self.class.middlewares
