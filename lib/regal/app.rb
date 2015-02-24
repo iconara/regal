@@ -103,14 +103,6 @@ module Regal
     end
   end
 
-  class AppContext
-    attr_reader :attributes
-
-    def initialize(attributes)
-      @attributes = attributes.dup.freeze
-    end
-  end
-
   module Arounds
     def before(request, response)
       @befores.each do |before|
