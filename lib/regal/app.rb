@@ -16,7 +16,7 @@ module Regal
     end
   end
 
-  module RouterDsl
+  module RoutesDsl
     # @private
     attr_reader :name,
                 :befores,
@@ -207,7 +207,7 @@ module Regal
   end
 
   class Route
-    extend RouterDsl
+    extend RoutesDsl
     include Arounds
 
     # @private
