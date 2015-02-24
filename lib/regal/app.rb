@@ -12,7 +12,11 @@ module Regal
   end
 
   module RouterDsl
-    attr_reader :name
+    attr_reader :name,
+                :befores,
+                :afters,
+                :rescuers,
+                :handlers
 
     def create(name=nil, &block)
       @name = name
@@ -32,18 +36,6 @@ module Regal
       self
     end
 
-    def befores
-      Array(@befores)
-    end
-
-    def afters
-      Array(@afters)
-    end
-
-    def rescuers
-      Array(@rescuers)
-    end
-
     def create_routes(attributes)
       routes = {}
       @mounted_apps.each do |app|
@@ -60,10 +52,6 @@ module Regal
         routes.default = @routes.default.new(attributes)
       end
       routes
-    end
-
-    def handlers
-      @handlers.dup
     end
 
     def route(s, &block)
