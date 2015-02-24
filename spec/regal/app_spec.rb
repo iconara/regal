@@ -206,7 +206,8 @@ module Regal
               response.body = 'whoopiedoo'
             end
 
-            get do
+            get do |_, response|
+              response.headers['X-HandlerCalled'] = 'yes'
               "I'm not called!"
             end
 
@@ -259,6 +260,7 @@ module Regal
 
         it 'does not call further handlers or before blocks when the response is marked as finished' do
           expect(last_response.body).to eq('Go somewhere else')
+          expect(last_response.headers).to_not have_key('X-HandlerCalled')
         end
 
         it 'calls after blocks' do

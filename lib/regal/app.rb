@@ -175,7 +175,9 @@ module Regal
           parent_routes.each do |parent_route|
             parent_route.before(request, response)
           end
-          matching_route.handle(request_method, request, response, env)
+          unless response.finished?
+            matching_route.handle(request_method, request, response, env)
+          end
         rescue => e
           handle_error(parent_routes, e, request, response)
         end
