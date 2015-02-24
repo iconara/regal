@@ -125,8 +125,39 @@ module Regal
     end
   end
 
+  module Arounds
+    def before(request, response)
+      @befores.each do |before|
+        unless response.finished?
+          @route.instance_exec(request, response, &before)
+        end
+      end
+    end
+
+    def after(request, response)
+      @afters.reverse_each do |after|
+        begin
+          @route.instance_exec(request, response, &after)
+        rescue => e
+          raise unless rescue_error(e, request, response)
+        end
+      end
+    end
+
+    def rescue_error(e, request, response)
+      @rescuers.reverse_each do |type, handler|
+        if type === e
+          @route.instance_exec(e, request, response, &handler)
+          return true
+        end
+      end
+      false
+    end
+  end
+
   class Route
     extend RouterDsl
+    include Arounds
 
     METHOD_NOT_ALLOWED_RESPONSE = [405, {}.freeze, [].freeze].freeze
     NOT_FOUND_RESPONSE = [404, {}.freeze, [].freeze].freeze
@@ -146,6 +177,7 @@ module Regal
       @afters = self.class.afters
       @rescuers = self.class.rescuers
       @routes = self.class.create_routes(attributes, middlewares)
+      @route = self
       setup_handlers(middlewares)
       freeze
     end
@@ -222,34 +254,6 @@ module Regal
       end
     end
 
-    def before(request, response)
-      @befores.each do |before|
-        unless response.finished?
-          instance_exec(request, response, &before)
-        end
-      end
-    end
-
-    def after(request, response)
-      @afters.reverse_each do |after|
-        begin
-          instance_exec(request, response, &after)
-        rescue => e
-          raise unless rescue_error(e, request, response)
-        end
-      end
-    end
-
-    def rescue_error(e, request, response)
-      @rescuers.reverse_each do |type, handler|
-        if type === e
-          instance_exec(e, request, response, &handler)
-          return true
-        end
-      end
-      false
-    end
-
     private
 
     def handle_error(parent_routes, e, request, response)
@@ -310,6 +314,8 @@ module Regal
   end
 
   class MountGraft
+    include Arounds
+
     attr_reader :name,
                 :routes
 
@@ -331,35 +337,17 @@ module Regal
     end
 
     def before(*args)
-      @befores.each do |before|
-        @route.instance_exec(*args, &before)
-      end
+      super
       @route.before(*args)
     end
 
     def after(*args)
       @route.after(*args)
-      @afters.reverse_each do |after|
-        begin
-          @route.instance_exec(*args, &after)
-        rescue => e
-          raise unless rescue_error(e, *args)
-        end
-      end
+      super
     end
 
     def rescue_error(e, *args)
-      if @route.rescue_error(e, *args)
-        true
-      else
-        @rescuers.reverse_each do |type, handler|
-          if type === e
-            instance_exec(e, *args, &handler)
-            return true
-          end
-        end
-        false
-      end
+      @route.rescue_error(e, *args) or super
     end
   end
 end
