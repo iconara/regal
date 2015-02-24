@@ -8,14 +8,6 @@ module Regal
       @attributes = attributes_prototype.dup
     end
 
-    def request_method
-      @env[REQUEST_METHOD_KEY]
-    end
-
-    def head?
-      request_method == HEAD_METHOD
-    end
-
     def parameters
       @parameters ||= begin
         query = Rack::Utils.parse_query(@env[QUERY_STRING_KEY])
@@ -55,7 +47,5 @@ module Regal
     CONTENT_TYPE_KEY = 'CONTENT_TYPE'.freeze
     CONTENT_TYPE_HEADER = 'Content-Type'.freeze
     RACK_INPUT_KEY = 'rack.input'.freeze
-    REQUEST_METHOD_KEY = 'REQUEST_METHOD'.freeze
-    HEAD_METHOD = 'HEAD'.freeze
   end
 end

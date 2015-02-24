@@ -150,6 +150,7 @@ module Regal
     SLASH = '/'.freeze
     PATH_INFO_KEY = 'PATH_INFO'.freeze
     REQUEST_METHOD_KEY = 'REQUEST_METHOD'.freeze
+    HEAD_METHOD = 'HEAD'.freeze
 
     attr_reader :name,
                 :routes
@@ -214,7 +215,7 @@ module Regal
             end
           end
         end
-        if request.head? || response.status < 200 || response.status == 204 || response.status == 205 || response.status == 304
+        if no_body_response?(request_method, response)
           response.no_body
         end
         response
@@ -223,6 +224,10 @@ module Regal
       else
         NOT_FOUND_RESPONSE
       end
+    end
+
+    def no_body_response?(request_method, response)
+      request_method == HEAD_METHOD || response.status < 200 || response.status == 204 || response.status == 205 || response.status == 304
     end
 
     def can_handle?(request_method)

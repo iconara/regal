@@ -532,36 +532,36 @@ module Regal
       let :app do
         App.new do
           get do |request|
-            request.request_method
+            request.env['REQUEST_METHOD']
           end
 
           head do |request|
-            request.request_method
+            request.env['REQUEST_METHOD']
           end
 
           options do |request|
-            request.request_method
+            request.env['REQUEST_METHOD']
           end
 
           delete do |request|
-            request.request_method
+            request.env['REQUEST_METHOD']
           end
 
           post do |request|
-            request.request_method
+            request.env['REQUEST_METHOD']
           end
 
           put do |request|
-            request.request_method
+            request.env['REQUEST_METHOD']
           end
 
           patch do |request|
-            request.request_method
+            request.env['REQUEST_METHOD']
           end
 
           route 'anything' do
             any do |request|
-              request.request_method
+              request.env['REQUEST_METHOD']
             end
           end
         end
