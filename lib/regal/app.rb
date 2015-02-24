@@ -67,6 +67,10 @@ module Regal
       @mounted_apps << app
     end
 
+    def scope(&block)
+      mount(Class.new(self).create(&block))
+    end
+
     def before(&block)
       @befores << block
     end

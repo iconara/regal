@@ -538,6 +538,18 @@ module Regal
         end
       end
 
+      SimpleApp1 = App.create do
+        get do
+          'simple1'
+        end
+      end
+
+      SimpleApp2 = App.create do
+        get do
+          'simple2'
+        end
+      end
+
       let :app do
         App.new do
           route 'i' do
@@ -548,7 +560,25 @@ module Regal
           end
 
           route 'oh' do
+            get do
+              'oh'
+            end
+
             mount HelloApp
+          end
+
+          route 'shadows' do
+            get do
+              'simple0'
+            end
+
+            mount SimpleApp1
+            mount SimpleApp2
+
+            route 'sub' do
+              mount SimpleApp1
+              mount SimpleApp2
+            end
           end
         end
       end
@@ -575,6 +605,126 @@ module Regal
         get '/oh/hello'
         expect(last_response.status).to eq(200)
         expect(last_response.body).to eq('hello')
+      end
+
+      context 'when the mounting and the mounted apps have handlers that match a request' do
+        it 'calls the mounting app\'s handler' do
+          get '/shadows'
+          expect(last_response.status).to eq(200)
+          expect(last_response.body).to eq('simple0')
+        end
+      end
+
+      context 'when the mounted apps have handlers that match a request' do
+        it 'calls the last mounted app\'s handler', pending: true do
+          get '/shadows/sub'
+          expect(last_response.status).to eq(200)
+          expect(last_response.body).to eq('simple2')
+        end
+      end
+    end
+
+    context 'an app that groups routes together in scopes' do
+      let :app do
+        App.new do
+          route 'scoped' do
+            before do |_, response|
+              response.headers['CommonBefore'] = 'yes'
+            end
+
+            after do |_, response|
+              response.headers['CommonAfter'] = 'yes'
+            end
+
+            scope do
+              before do |_, response|
+                response.headers['BeforeScope'] = '1'
+              end
+
+              after do |_, response|
+                response.headers['AfterScope'] = '1'
+              end
+
+              get do
+                'scope1-level1'
+              end
+
+              route '1' do
+                get do
+                  'scope1-level2'
+                end
+              end
+            end
+
+            scope do
+              before do |_, response|
+                response.headers['BeforeScope'] = '2'
+              end
+
+              after do |_, response|
+                response.headers['AfterScope'] = '2'
+              end
+
+              get do
+                'scope2-level1'
+              end
+
+              scope do
+                before do |_, response|
+                  response.headers['BeforeSubScope'] = '2'
+                end
+
+                route '2' do
+                  get do
+                    'scope2-level2'
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+
+      it 'routes a request' do
+        get '/scoped/1'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('scope1-level2')
+        get '/scoped/2'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('scope2-level2')
+      end
+
+      it 'picks the handler from the last scope when there are multiple candidates', pending: true do
+        get '/scoped'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('scope2-level1')
+      end
+
+      it 'calls the route\'s parent scope\'s before blocks only' do
+        get '/scoped/1'
+        expect(last_response.status).to eq(200)
+        expect(last_response.headers).to include('BeforeScope' => '1')
+        get '/scoped/2'
+        expect(last_response.status).to eq(200)
+        expect(last_response.headers).to include('BeforeScope' => '2', 'BeforeSubScope' => '2')
+      end
+
+      it 'calls the route\'s parent scope\'s after blocks only' do
+        get '/scoped/1'
+        expect(last_response.status).to eq(200)
+        expect(last_response.headers).to include('AfterScope' => '1')
+        get '/scoped/2'
+        expect(last_response.status).to eq(200)
+        expect(last_response.headers).to include('AfterScope' => '2')
+      end
+
+      it 'calls the common before and after blocks' do
+        get '/scoped/1'
+        expect(last_response.status).to eq(200)
+        expect(last_response.headers).to include('CommonBefore' => 'yes', 'CommonAfter' => 'yes')
+        get '/scoped/2'
+        expect(last_response.status).to eq(200)
+        expect(last_response.headers).to include('CommonBefore' => 'yes', 'CommonAfter' => 'yes')
       end
     end
 
