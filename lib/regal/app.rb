@@ -2,12 +2,18 @@ require 'rack'
 
 module Regal
   module App
+    # Creates a new app described by the given block.
+    #
     # @yield []
     # @return [Class<Route>]
     def self.create(&block)
       Class.new(Route).create(&block)
     end
 
+    # Creates a new app and instantiates it.
+    #
+    # This is the same as `App.create { }.new(attributes)`.
+    #
     # @param [Hash] attributes
     # @yield []
     # @return [Route]
@@ -62,7 +68,22 @@ module Regal
       routes
     end
 
-    # @param [String, Symbol] s
+    # Defines a route.
+    #
+    # A route is either static or dynamic. Static routes match request path
+    # components verbatim, whereas dynamic routes captures their value. A
+    # static route is defined by a string and a dynamic route by a symbol.
+    #
+    # When routes are matched during request handling a static route will match
+    # if it is exactly equal to the next path component. A dynamic route will
+    # always match. All static routes are tried before any dynamic route.
+    #
+    # A route can only have a single dynamic child route. If you declare multiple
+    # dynamic routes only the last one is kept.
+    #
+    # @param [String, Symbol] s either a string, which creates a static route
+    #   that matches a path component exactly, or a symbol, which captures the
+    #   value of the path component.
     # @yield []
     # @return [void]
     def route(s, &block)
@@ -75,6 +96,11 @@ module Regal
       nil
     end
 
+    # Mount a child app.
+    #
+    # Mounting a child app makes that app's routes available as if they were
+    # defined in this route.
+    #
     # @param [Class<Route>] app
     # @return [void]
     def mount(app)
@@ -82,12 +108,26 @@ module Regal
       nil
     end
 
+    # Wrap the child routes and handlers in a scope.
+    #
+    # Scopes can have before, after and rescue blocks that are not shared with
+    # sibling scopes. They work more or less like mounting apps, but inline.
+    #
     # @yield []
     # @return [void]
     def scope(&block)
       mount(Class.new(self).create(&block))
     end
 
+    # Register a before block for this route.
+    #
+    # Before blocks run before the request handler and have access to the
+    # request and response.
+    #
+    # A route can have any number of before blocks and they will be called
+    # in the order that they are declared with the outermost route's before
+    # blocks being called first, followed by child routes.
+    #
     # @yield [request, response]
     # @yieldparam request [Request]
     # @yieldparam response [Response]
@@ -97,6 +137,15 @@ module Regal
       nil
     end
 
+    # Register an after block for this route.
+    #
+    # After blocks run after the request handler and have access to the
+    # request and response.
+    #
+    # A route can have any number of after blocks and they will be called
+    # in the order that they are declared with the innermost route's after
+    # blocks being called first, followed by the parent route.
+    #
     # @yield [request, response]
     # @yieldparam request [Request]
     # @yieldparam response [Response]
@@ -106,6 +155,20 @@ module Regal
       nil
     end
 
+    # Register a rescue block for this route.
+    #
+    # Rescue blocks run when a before or after block, or a handler raises
+    # an error that matches the block's error type (compared using `#===`).
+    #
+    # A route can have any number of rescue blocks, but the order they are
+    # declared in is important. When an error is raised the blocks are searched
+    # in reverse order for a match, so the last declared rescue block with a
+    # matching type will be the one to handle the error.
+    #
+    # Once an error handler has been called the error is assumed to have been
+    # handled. If the error handler raises an error, the next matching handler
+    # will be found, or the error will bubble up outside the app.
+    #
     # @param [Class<Error>] type
     # @yield [error, request, response]
     # @yieldparam error [Error]
@@ -124,55 +187,86 @@ module Regal
       end
     end
 
+    # @!group Handlers
+
+    # Register a handler for `GET` requests to this route
+    #
     # @!method get
     # @yield [request, response]
     # @yieldparam request [Request]
     # @yieldparam response [Response]
+    # @yieldreturn [Object] the response body
     # @return [void]
 
+    # Register a handler for `HEAD` requests to this route
+    #
     # @!method head
     # @yield [request, response]
     # @yieldparam request [Request]
     # @yieldparam response [Response]
+    # @yieldreturn [Object] the response body
     # @return [void]
 
+    # Register a handler for `OPTIONS` requests to this route
+    #
     # @!method options
     # @yield [request, response]
     # @yieldparam request [Request]
     # @yieldparam response [Response]
+    # @yieldreturn [Object] the response body
     # @return [void]
 
+    # Register a handler for `DELETE` requests to this route
+    #
     # @!method delete
     # @yield [request, response]
     # @yieldparam request [Request]
     # @yieldparam response [Response]
+    # @yieldreturn [Object] the response body
     # @return [void]
 
+    # Register a handler for `POST` requests to this route
+    #
     # @!method post
     # @yield [request, response]
     # @yieldparam request [Request]
     # @yieldparam response [Response]
+    # @yieldreturn [Object] the response body
     # @return [void]
 
+    # Register a handler for `PUT` requests to this route
+    #
     # @!method put
     # @yield [request, response]
     # @yieldparam request [Request]
     # @yieldparam response [Response]
+    # @yieldreturn [Object] the response body
     # @return [void]
 
+    # Register a handler for `PATCH` requests to this route
+    #
     # @!method patch
     # @yield [request, response]
     # @yieldparam request [Request]
     # @yieldparam response [Response]
+    # @yieldreturn [Object] the response body
     # @return [void]
 
+    # Register a handler for any request method
+    #
+    # `any` handlers are called when there is no specific handler in this route
+    # for the request method.
+    #
     # @yield [request, response]
     # @yieldparam request [Request]
     # @yieldparam response [Response]
+    # @yieldreturn [Object] the response body
     # @return [void]
     def any(&block)
       @handlers.default = block
     end
+
+    # @!endgroup
   end
 
   # @private
@@ -206,6 +300,7 @@ module Regal
     end
   end
 
+  # A route is an application, or a part of an application
   class Route
     extend RoutesDsl
     include Arounds
@@ -214,7 +309,10 @@ module Regal
     attr_reader :name,
                 :routes
 
-    # @param [Hash] attributes
+    # Create a new application with this route as its root
+    #
+    # @param [Hash] attributes a copy of this hash will be available
+    #   from {Request#attributes} during request processing
     def initialize(attributes)
       @attributes = attributes.dup.freeze
       @name = self.class.name
@@ -227,6 +325,8 @@ module Regal
       freeze
     end
 
+    # Route and handle a request
+    #
     # @param [Hash] env
     # @return [Array<(Integer, Hash, Enumerable)>]
     def call(env)
