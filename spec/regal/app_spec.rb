@@ -323,11 +323,11 @@ module Regal
 
           route 'two-after' do
             after do |request, response|
-              response.body['list'] << 1
+              response.body['list'] << 2
             end
 
             after do |request, response|
-              response.body['list'] << 2
+              response.body['list'] << 1
             end
 
             get do |request|
@@ -1230,12 +1230,12 @@ module Regal
             end
 
             route 'from-after' do
-              after do
-                raise SpecificError, 'Kazam!'
-              end
-
               after do |_, response|
                 response.headers['NextAfterWasCalled'] = 'yes'
+              end
+
+              after do
+                raise SpecificError, 'Kazam!'
               end
 
               get do

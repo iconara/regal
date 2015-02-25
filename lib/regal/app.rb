@@ -280,7 +280,7 @@ module Regal
     end
 
     def after(request, response)
-      @afters.reverse_each do |after|
+      @afters.each do |after|
         begin
           @route.instance_exec(request, response, &after)
         rescue => e
