@@ -337,17 +337,16 @@ module Regal
       if matching_route && matching_route.can_handle?(request_method)
         request = Request.new(env, path_captures, @attributes)
         response = Response.new
-        finishing_route = nil
-        begin
-          finishing_route = run_befores(parent_routes, request, response)
-          unless response.finished?
+        finishing_route = run_befores(parent_routes, request, response)
+        if finishing_route.nil? && !response.finished?
+          begin
             result = matching_route.handle(request_method, request, response)
             unless response.finished?
               response.body = result
             end
+          rescue => e
+            finishing_route = handle_error(parent_routes, finishing_route, e, request, response)
           end
-        rescue => e
-          handle_error(parent_routes, finishing_route, e, request, response)
         end
         run_afters(parent_routes, finishing_route, request, response)
         if no_body_response?(request_method, response)
@@ -410,7 +409,6 @@ module Regal
             return parent_route
           end
         rescue => e
-          response.finish
           return handle_error(parent_routes, parent_route, e, request, response)
         end
       end
@@ -425,7 +423,8 @@ module Regal
           begin
             parent_route.after(request, response)
           rescue => e
-            handle_error(parent_routes, parent_route, e, request, response)
+            skip_routes = true
+            finishing_route = handle_error(parent_routes, parent_route, e, request, response)
           end
         end
       end
@@ -436,8 +435,17 @@ module Regal
       parent_routes.reverse_each do |parent_route|
         if !skip_routes || finishing_route == parent_route
           skip_routes = false
-          if parent_route.rescue_error(e, request, response)
-            return parent_route
+          begin
+            if parent_route.rescue_error(e, request, response)
+              return parent_route
+            end
+          rescue => e
+            if parent_routes.first == parent_route
+              raise e
+            else
+              next_level = parent_routes[parent_routes.index(parent_route) - 1]
+              return handle_error(parent_routes, next_level, e, request, response)
+            end
           end
         end
       end

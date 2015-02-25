@@ -463,6 +463,83 @@ module Regal
           expect(last_response.body).to eq('"before1|before2|after1"')
         end
       end
+
+      context 'when rescue block raises an error that is handled a few levels up' do
+        let :app do
+          App.new do
+            after do |_, response|
+              response.body = response.body.join('|')
+            end
+
+            route 'one' do
+              after do |_, response|
+                response.body << 'after1'
+              end
+
+              route 'two' do
+                after do |_, response|
+                  response.body << 'after2'
+                end
+
+                rescue_from StandardError do
+                end
+
+                route 'three' do
+                  after do |_, response|
+                    response.body << 'after3'
+                  end
+
+                  route 'four' do
+                    after do |_, response|
+                      response.body << 'after4'
+                    end
+
+                    rescue_from StandardError do
+                      raise 'Snork'
+                    end
+
+                    route 'raise-in-after' do
+                      after do |_, response|
+                        raise 'Bork'
+                      end
+
+                      get do
+                        []
+                      end
+                    end
+
+                    route 'raise-in-before' do
+                      before do |_, response|
+                        response.body = []
+                        raise 'Bork'
+                      end
+
+                      get do
+                      end
+                    end
+
+                    route 'raise-in-handler' do
+                      get do |_, response|
+                        response.body = []
+                        raise 'Bork'
+                      end
+                    end
+                  end
+                end
+              end
+            end
+          end
+        end
+
+        it 'runs only the after blocks from the same level as the rescue block, and up' do
+          get '/one/two/three/four/raise-in-after'
+          expect(last_response.body).to eq('after2|after1')
+          get '/one/two/three/four/raise-in-before'
+          expect(last_response.body).to eq('after2|after1')
+          get '/one/two/three/four/raise-in-handler'
+          expect(last_response.body).to eq('after2|after1')
+        end
+      end
     end
 
     context 'an app that has capturing routes' do
@@ -1165,6 +1242,16 @@ module Regal
               end
             end
 
+            route 'from-rescue' do
+              rescue_from SpecificError do |e|
+                raise AppError, 'Badaboom!'
+              end
+
+              get do
+                raise SpecificError, 'Kaboom!'
+              end
+            end
+
             route 'handled-locally' do
               rescue_from SpecificError do |error, request, response|
               end
@@ -1259,6 +1346,13 @@ module Regal
           get '/handled/from-after'
           expect(last_response.headers['NextAfterWasCalled']).to eq('yes')
           expect(last_response.headers['WasAfterCalled']).to eq('yes')
+        end
+      end
+
+      context 'from rescue blocks' do
+        it 'delegates them to the next matching error handler' do
+          get '/handled/from-rescue'
+          expect(last_response.body).to eq('Badaboom!')
         end
       end
 
