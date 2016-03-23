@@ -354,9 +354,9 @@ module Regal
         end
         response
       elsif matching_route
-        METHOD_NOT_ALLOWED_RESPONSE
+        [405, {}, []]
       else
-        NOT_FOUND_RESPONSE
+        [404, {}, []]
       end
     end
 
@@ -373,8 +373,6 @@ module Regal
 
     private
 
-    METHOD_NOT_ALLOWED_RESPONSE = [405, {}.freeze, [].freeze].freeze
-    NOT_FOUND_RESPONSE = [404, {}.freeze, [].freeze].freeze
     SLASH = '/'.freeze
     PATH_INFO_KEY = 'PATH_INFO'.freeze
     REQUEST_METHOD_KEY = 'REQUEST_METHOD'.freeze
