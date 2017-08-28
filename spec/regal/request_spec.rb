@@ -36,6 +36,11 @@ module Regal
           expect { request.parameters[:new] = 'value' }.to raise_error(/can't modify frozen/)
         end
       end
+
+      it 'only considers "&" as a parameter separator' do
+        env['QUERY_STRING'] = 'a=1&b=2;c=3&d=4'
+        expect(request.parameters).to include('a' => '1', 'b' => '2;c=3', 'd' => '4')
+      end
     end
 
     describe '#headers' do
