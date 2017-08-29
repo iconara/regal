@@ -19,7 +19,7 @@ module Regal
     # @return [Hash]
     def parameters
       @parameters ||= begin
-        query = Rack::Utils.parse_query(@env[QUERY_STRING_KEY])
+        query = Rack::Utils.parse_query(@env[QUERY_STRING_KEY], PARAMETER_SEPARATORS)
         query.merge!(@path_captures)
         query.freeze
       end
@@ -53,6 +53,7 @@ module Regal
 
     private
 
+    PARAMETER_SEPARATORS = '&'.freeze
     HEADER_PREFIX = 'HTTP_'.freeze
     QUERY_STRING_KEY = 'QUERY_STRING'.freeze
     CONTENT_LENGTH_KEY = 'CONTENT_LENGTH'.freeze
