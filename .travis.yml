@@ -5,14 +5,12 @@ script: bundle exec rake spec
 bundler_args: --without development
 rvm:
   - 1.9.3
-  - 2.0.0
-  - 2.1.1
-  - 2.2.0
-  - jruby
+  - 2.3.5
+  - 2.4.2
+  - jruby-1.7.19
+  - jruby-9.1.15.0
   - jruby-head
-  - rbx-2
 matrix:
   allow_failures:
-    - rvm: rbx-2
     - rvm: jruby-head
   fast_finish: true
