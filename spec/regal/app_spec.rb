@@ -730,6 +730,7 @@ module Regal
               'static'
             end
           end
+
           route :bar do
             get do
               'inside'
@@ -741,6 +742,7 @@ module Regal
           route 'foo' do
             mount InnerApp
           end
+
           route :outside do
             get do
               'outside'
@@ -749,7 +751,7 @@ module Regal
         end
       end
 
-      it 'prioritizes static the route' do
+      it 'prioritizes the static route' do
         get '/foo/static'
         expect(last_response.status).to eq(200)
         expect(last_response.body).to eq('static')
@@ -777,6 +779,7 @@ module Regal
             end
           end
         end
+
         InnerApp2 = App.create do
           route :bar do
             get do
@@ -793,7 +796,7 @@ module Regal
         end
       end
 
-      it 'gives priority to second capture route' do
+      it 'last capture route replaces earlier mounted capture route' do
         get '/foo/this'
         expect(last_response.status).to eq(200)
         expect(last_response.body).to eq('inside 2')
