@@ -592,6 +592,27 @@ module Regal
       end
     end
 
+    context 'an app that has a top-level capturing route' do
+      let :app do
+        App.new do
+          route :foo do
+            get do
+              'whatever'
+            end
+          end
+        end
+      end
+
+      it 'matches anything for the capture route' do
+        get '/something'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('whatever')
+        get '/something-else'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('whatever')
+      end
+    end
+
     context 'an app that mounts another app' do
       GoodbyeApp = App.create do
         route 'goodbye' do
@@ -698,6 +719,87 @@ module Regal
           expect(last_response.status).to eq(200)
           expect(last_response.body).to eq('simple2')
         end
+      end
+    end
+
+    context 'an app that has an mounted capturing route' do
+      let :app do
+        InnerApp = App.create do
+          route 'static' do
+            get do
+              'static'
+            end
+          end
+
+          route :bar do
+            get do
+              'inside'
+            end
+          end
+        end
+
+        App.new do
+          route 'foo' do
+            mount InnerApp
+          end
+
+          route :outside do
+            get do
+              'outside'
+            end
+          end
+        end
+      end
+
+      it 'prioritizes the static route' do
+        get '/foo/static'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('static')
+      end
+
+      it 'matches anything for the mounted capture route' do
+        get '/foo/this'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('inside')
+      end
+
+      it 'still matches anything for the parent capture route' do
+        get '/this'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('outside')
+      end
+    end
+
+    context 'an app that has two mounted capturing routes' do
+      let :app do
+        InnerApp1 = App.create do
+          route :bar do
+            get do
+              'inside 1'
+            end
+          end
+        end
+
+        InnerApp2 = App.create do
+          route :bar do
+            get do
+              'inside 2'
+            end
+          end
+        end
+
+        App.new do
+          route 'foo' do
+            mount InnerApp1
+            mount InnerApp2
+          end
+        end
+      end
+
+      it 'last capture route replaces earlier mounted capture route' do
+        get '/foo/this'
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to eq('inside 2')
       end
     end
 

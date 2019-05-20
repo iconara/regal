@@ -58,6 +58,7 @@ module Regal
           MountGraft.new(app, route)
         end
         routes.merge!(mounted_routes)
+        routes.default = mounted_routes.default
       end
       @routes.each do |path, cls|
         routes[path] = cls.new(attributes)
