@@ -4,10 +4,8 @@ cache: bundler
 script: bundle exec rake spec
 bundler_args: --without development
 rvm:
-  - 1.9.3
   - 2.3.5
   - 2.4.2
-  - jruby-1.7.19
   - jruby-9.1.15.0
   - jruby-head
 matrix:
