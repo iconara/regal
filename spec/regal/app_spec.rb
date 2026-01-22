@@ -126,7 +126,7 @@ module Regal
 
       it 'can set response headers' do
         get '/redirect'
-        expect(last_response.headers).to include('Location' => 'somewhere/else')
+        expect(last_response.headers).to include('location' => 'somewhere/else')
       end
     end
 
@@ -262,11 +262,11 @@ module Regal
 
         it 'does not call further handlers or before blocks when the response is marked as finished' do
           expect(last_response.body).to eq('Go somewhere else')
-          expect(last_response.headers).to_not have_key('X-HandlerCalled')
+          expect(last_response.headers).to_not have_key('x-handlercalled')
         end
 
         it 'calls after blocks' do
-          expect(last_response.headers).to include('WasAfterCalled' => 'yes')
+          expect(last_response.headers).to include('wasaftercalled' => 'yes')
         end
       end
 
@@ -882,28 +882,28 @@ module Regal
       it 'calls the route\'s parent scope\'s before blocks only' do
         get '/scoped/1'
         expect(last_response.status).to eq(200)
-        expect(last_response.headers).to include('BeforeScope' => '1')
+        expect(last_response.headers).to include('beforescope' => '1')
         get '/scoped/2'
         expect(last_response.status).to eq(200)
-        expect(last_response.headers).to include('BeforeScope' => '2', 'BeforeSubScope' => '2')
+        expect(last_response.headers).to include('beforescope' => '2', 'beforesubscope' => '2')
       end
 
       it 'calls the route\'s parent scope\'s after blocks only' do
         get '/scoped/1'
         expect(last_response.status).to eq(200)
-        expect(last_response.headers).to include('AfterScope' => '1')
+        expect(last_response.headers).to include('afterscope' => '1')
         get '/scoped/2'
         expect(last_response.status).to eq(200)
-        expect(last_response.headers).to include('AfterScope' => '2')
+        expect(last_response.headers).to include('afterscope' => '2')
       end
 
       it 'calls the common before and after blocks' do
         get '/scoped/1'
         expect(last_response.status).to eq(200)
-        expect(last_response.headers).to include('CommonBefore' => 'yes', 'CommonAfter' => 'yes')
+        expect(last_response.headers).to include('commonbefore' => 'yes', 'commonafter' => 'yes')
         get '/scoped/2'
         expect(last_response.status).to eq(200)
-        expect(last_response.headers).to include('CommonBefore' => 'yes', 'CommonAfter' => 'yes')
+        expect(last_response.headers).to include('commonbefore' => 'yes', 'commonafter' => 'yes')
       end
     end
 
@@ -1412,7 +1412,7 @@ module Regal
 
         it 'calls after blocks when errors are handled' do
           get '/handled'
-          expect(last_response.headers['WasAfterCalled']).to eq('yes')
+          expect(last_response.headers['wasaftercalled']).to eq('yes')
         end
 
         it 'lets them bubble all the way up when there are no matching error handlers' do
@@ -1428,12 +1428,12 @@ module Regal
 
         it 'delegates them to matching error handlers at the same level, not below' do
           get '/handled/at-the-right-level/level-3/level-4'
-          expect(last_response.headers).to include('HandledAtLevel' => '3')
+          expect(last_response.headers).to include('handledatlevel' => '3')
         end
 
         it 'calls after blocks when errors are handled' do
           get '/handled/from-before'
-          expect(last_response.headers['WasAfterCalled']).to eq('yes')
+          expect(last_response.headers['wasaftercalled']).to eq('yes')
         end
 
       end
@@ -1446,8 +1446,8 @@ module Regal
 
         it 'calls the rest of the after blocks when errors are handled' do
           get '/handled/from-after'
-          expect(last_response.headers['NextAfterWasCalled']).to eq('yes')
-          expect(last_response.headers['WasAfterCalled']).to eq('yes')
+          expect(last_response.headers['nextafterwascalled']).to eq('yes')
+          expect(last_response.headers['wasaftercalled']).to eq('yes')
         end
       end
 

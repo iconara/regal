@@ -20,7 +20,7 @@ module Regal
     # @private
     def initialize
       @status = 200
-      @headers = {}
+      @headers = Rack::Headers.new
       @body = nil
       @raw_body = nil
       @finished = false
